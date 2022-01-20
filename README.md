@@ -111,5 +111,5 @@ $ node example.js
 require-from-string: OK
   >>>> [Warning] (_http_client) GET - http://google.com
   >>>> [Allowed] (module:compile) Test - OtbUd5po/kQtu2FweSNa42kOfFYZvlsFuen1xXeOPKs=
-  >>>> [Warning] (https:request) GET - https://switchmail.com/
+  >>>> [Warning] (https:request) GET - https://google.com/
 ```
