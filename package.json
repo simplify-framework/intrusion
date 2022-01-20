@@ -26,6 +26,7 @@
   },
   "homepage": "https://github.com/simplify-framework/intrusion#readme",
   "dependencies": {
-    "yargs": "^16.2.0"
+    "aws-sdk": "^2.1060.0",
+    "lodash": "^4.17.21"
   }
 }
