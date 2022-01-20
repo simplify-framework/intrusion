@@ -1,0 +1,31 @@
+{
+  "name": "simplify-sample",
+  "version": "0.1.0",
+  "description": "Simplify - Easy Sample",
+  "main": "index.js",
+  "bin": {
+    "simplify-sample": "index.js"
+  },
+  "scripts": {},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/simplify-framework/sample.git"
+  },
+  "keywords": [
+    "simplify-framework"
+  ],
+  "author": "Duong Dinh Cuong",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/simplify-framework/sample/issues"
+  },
+  "homepage": "https://github.com/simplify-framework/sample#readme",
+  "dependencies": {
+    "dotenv": "^8.2.0",
+    "readline-sync": "^1.4.10",
+    "simplify-sdk": "^0.1.50",
+    "uuid": "^8.3.1",
+    "yaml": "^1.10.2",
+    "yargs": "^15.4.1"
+  }
+}
