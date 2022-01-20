@@ -1,31 +1,30 @@
 {
-  "name": "simplify-sample",
+  "name": "simplify-intrusion",
   "version": "0.1.0",
-  "description": "Simplify - Easy Sample",
+  "description": "Simplify Intrusion Detection/Prevention for NodeJS",
   "main": "index.js",
   "bin": {
-    "simplify-sample": "index.js"
+    "simplify-intrusion": "index.js"
   },
-  "scripts": {},
+  "scripts": {
+    "test": "npm run test"
+  },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/simplify-framework/sample.git"
+    "url": "git+https://github.com/simplify-framework/intrusion.git"
   },
   "keywords": [
-    "simplify-framework"
+    "intrusion",
+    "security",
+    "firewall",
+    "lambda"
   ],
   "author": "Duong Dinh Cuong",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/simplify-framework/sample/issues"
+    "url": "https://github.com/simplify-framework/intrusion/issues"
   },
-  "homepage": "https://github.com/simplify-framework/sample#readme",
+  "homepage": "https://github.com/simplify-framework/intrusion#readme",
   "dependencies": {
-    "dotenv": "^8.2.0",
-    "readline-sync": "^1.4.10",
-    "simplify-sdk": "^0.1.50",
-    "uuid": "^8.3.1",
-    "yaml": "^1.10.2",
-    "yargs": "^15.4.1"
   }
 }
