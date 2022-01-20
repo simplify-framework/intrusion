@@ -4,6 +4,5 @@
   "description": "Simplify Framework IDS/IPS test",
   "type": "commonjs",
   "dependencies": {
-    "require-from-string": "^2.0.2"
   }
 }
