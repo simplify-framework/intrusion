@@ -3,6 +3,24 @@
 ![NPM Downloads](https://img.shields.io/npm/dw/simplify-intrusion)
 ![Package Version](https://img.shields.io/github/package-json/v/simplify-framework/intrusion?color=green)
 
+### Setup AWS pre-requisite environment
+
+This library requires AWS IAM Role to allow publishing the CloudWatch Metrics to a custom namespace:
+
+```yaml
+Policies:
+  - PolicyName: cloudwatch-metrics
+    PolicyDocument:
+      Statement:
+      - Effect: Allow
+        Action:
+        - cloudwatch:PutMetricData
+        Resource: "*"
+```
+
+The metrics' namespace is set in the constructor at 2nd parameter: 
+- new Firewall({}, '`TestApp/Firewall`' /* Custom Namespace */)
+
 1. Install Simplify Framework - Intrustion library
 - `npm install simplify-intrustion`
 
