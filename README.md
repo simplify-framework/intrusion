@@ -1,9 +1,9 @@
-### HOW TO: SimplifyFramework - IDS/IPS (Intrusion Detection/Prevention)
+### SimplifyFramework - IDS/IPS (Intrusion Detection/Prevention)
 
 ![NPM Downloads](https://img.shields.io/npm/dw/simplify-intrusion)
 ![Package Version](https://img.shields.io/github/package-json/v/simplify-framework/intrusion?color=green)
 
-### Setup AWS pre-requisite environment
+### Setup your AWS environment or IAM Role in your Lambdas with this permission:
 
 This library requires AWS IAM Role to allow publishing the CloudWatch Metrics to a custom namespace:
 
@@ -21,7 +21,7 @@ Policies:
 The metrics' namespace is set in the constructor at 2nd parameter: 
 - new Firewall({}, '`TestApp/Firewall`' /* Custom Namespace */)
 
-### HOWTO use the Firewall to detect the intrustion outbound network from your code:
+### Use the { Firewall } to detect the intrustion outbound network from your code:
 
 1. Load the library with Firewall configuration:
 
