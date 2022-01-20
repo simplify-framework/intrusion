@@ -1,5 +1,8 @@
 ### HOW TO: SimplifyFramework - IDS/IPS (Intrusion Detection/Prevention)
 
+![NPM Downloads](https://img.shields.io/npm/dw/simplify-intrusion)
+![Package Version](https://img.shields.io/github/package-json/v/simplify-framework/intrusion?color=green)
+
 1. Install Simplify Framework - Intrustion library
 - `npm install simplify-intrustion`
 
