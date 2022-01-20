@@ -16,7 +16,7 @@ jobs:
         with:
           node-version: 16
       - run: mkdir -p ~/.aws/
-      - run: echo "[default]" > /root/.aws/config
+      - run: echo "[default]" > ~/.aws/config
       - run: npm ci
       - run: npm test
 
@@ -33,7 +33,7 @@ jobs:
           node-version: 16
           registry-url: https://npm.pkg.github.com/
       - run: mkdir -p ~/.aws/
-      - run: echo "[default]" > /root/.aws/config
+      - run: echo "[default]" > ~/.aws/config
       - run: npm ci
       - run: npm publish
         env:
