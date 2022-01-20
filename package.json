@@ -7,7 +7,7 @@
     "simplify-intrusion": "index.js"
   },
   "scripts": {
-    "test": "node -e 'require(\"./indexjs\")'"
+    "test": "node -e 'require(\"./index.js\")'"
   },
   "repository": {
     "type": "git",
