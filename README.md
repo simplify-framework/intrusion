@@ -7,6 +7,8 @@
 
 This library requires AWS IAM Role to allow publishing the CloudWatch Metrics to a custom namespace:
 
+**The process.env.`ALLOW_METRIC_LOGGING`=true will turn ON or OFF this metric logging.**
+
 ```yaml
 Policies:
   - PolicyName: cloudwatch-metrics
