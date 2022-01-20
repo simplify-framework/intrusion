@@ -26,15 +26,15 @@ var res = new httpClient.ClientRequest("http://google.com", { headers: { "Conten
             s.destroy()
             const client = net.createConnection({ port: 443, host: 'websocketstest.com' }, () => {
                 client.write('world!\r\n');
-                const sc = net.connect({ port: 443, host: 'websocketstest.com' }, () => {
+                const sc = net.connect({ port: 443, host: '88.198.55.153' }, () => {
                     sc.write('world!\r\n');
-                });
+                }).on('error', () => { })
                 client.on('data', (data) => {
                     client.end();
                 });
                 client.on('end', () => {
                 });
-            });
+            })
             client.on('data', (data) => {
                 client.end();
             });

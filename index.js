@@ -1,6 +1,7 @@
 process.env.AWS_SDK_LOAD_CONFIG = true
 var requireHook = require("./require-hook")
 var path = require('path')
+const dns = require('dns')
 var crypto = require('crypto')
 var AWS = require('aws-sdk')
 var http = require('./node-libs/http')
@@ -18,6 +19,10 @@ const RED = '\x1b[31m'
 const YELLOW = '\x1b[33m'
 const WHITE = '\x1b[0m'
 const RESET = '\x1b[0m'
+
+function resolveHostAddress(ipaddress) {
+    return (ipaddress)
+}
 
 // Returns an array [options, cb], where options is an object,
 // cb is either a function or null.
@@ -187,20 +192,21 @@ class Firewall {
         const options = typeof args[0] === 'string' ? new URL(args[0]) : args[0]
         const protocol = `${options.protocol || options.agent.protocol || `ws${options.port == 443 ? 's:' : ':'}`}`
         const moduleName = protocol.replace(':', '')
-        const argURL = `${protocol}//${options.host}${(options.search ? options.pathname + options.search : options.pathname) || options.path || ''}`
-        if (Firewall.ALLOWED_HOSTS.find(h => options.host.indexOf(h) >= 0 ? true : false) != undefined) {
-            Firewall.customMetricCWLogs("Allowed", "https.request()", options.host, (err, data) => {
+        const resolvedHost = resolveHostAddress(options.host)
+        const argURL = `${protocol}//${resolvedHost}${(options.search ? options.pathname + options.search : options.pathname) || options.path || ''}`
+        if (Firewall.ALLOWED_HOSTS.find(h => resolvedHost.indexOf(h) >= 0 ? true : false) != undefined) {
+            Firewall.customMetricCWLogs("Allowed", "https.request()", resolvedHost, (err, data) => {
                 console.log('  >>>>', `[${GREEN}Allowed${RESET}] (${moduleName}:request) ${options.method || 'GET'} - ${argURL}`)
             })
             return (protocol === 'https:' ? https.request(...args) : http.request(...args))
         } else {
-            if (Firewall.BLOCKED_LIST.indexOf(options.host) >= 0) {
-                Firewall.customMetricCWLogs("Blocked", "https.request()", options.host, (err, data) => {
+            if (Firewall.BLOCKED_LIST.indexOf(resolvedHost) >= 0) {
+                Firewall.customMetricCWLogs("Blocked", "https.request()", resolvedHost, (err, data) => {
                     console.error('  >>>>', `[${RED}${RESET}] (${moduleName}:request) ${options.method || 'GET'} - ${argURL}`)
                 })
                 return (protocol === 'https:' ? https.request() : http.request())
             }
-            Firewall.customMetricCWLogs("Warning", "https.request()", options.host, (err, data) => {
+            Firewall.customMetricCWLogs("Warning", "https.request()", resolvedHost, (err, data) => {
                 console.warn('  >>>>', `[${YELLOW}Warning${RESET}] (${moduleName}:request) ${options.method || 'GET'} - ${argURL}`)
             })
             return (protocol === 'https:' ? https.request(...args) : http.request(...args))
@@ -211,20 +217,21 @@ class Firewall {
         const options = typeof args[0] === 'string' ? new URL(args[0]) : typeof args[1] === 'function' ? {} : args[1]
         const protocol = `${options.protocol || options.agent.protocol || `ws${options.port == 443 ? 's:' : ':'}`}`
         const moduleName = protocol.replace(':', '')
-        const argURL = `${protocol}//${options.host}${(options.search ? options.pathname + options.search : options.pathname) || options.path || ''}`
-        if (Firewall.ALLOWED_HOSTS.find(h => options.host.indexOf(h) >= 0 ? true : false) != undefined) {
-            Firewall.customMetricCWLogs("Allowed", "https.get()", options.host, (err, data) => {
+        const resolvedHost = resolveHostAddress(options.host)
+        const argURL = `${protocol}//${resolvedHost}${(options.search ? options.pathname + options.search : options.pathname) || options.path || ''}`
+        if (Firewall.ALLOWED_HOSTS.find(h => resolvedHost.indexOf(h) >= 0 ? true : false) != undefined) {
+            Firewall.customMetricCWLogs("Allowed", "https.get()", resolvedHost, (err, data) => {
                 console.log('  >>>>', `[${GREEN}Allowed${RESET}] (${moduleName}:get) GET - ${argURL}`)
             })
             return (protocol === 'https:' ? https.get(...args) : http.get(...args))
         } else {
-            if (Firewall.BLOCKED_LIST.indexOf(options.host) >= 0) {
-                Firewall.customMetricCWLogs("Blocked", "https.get()", options.host, (err, data) => {
+            if (Firewall.BLOCKED_LIST.indexOf(resolvedHost) >= 0) {
+                Firewall.customMetricCWLogs("Blocked", "https.get()", resolvedHost, (err, data) => {
                     console.error('  >>>>', `[${RED}Blocked${RESET}] (${moduleName}:get) GET - ${argURL}`)
                 })
                 return (protocol === 'https:' ? https.get() : http.get())
             }
-            Firewall.customMetricCWLogs("Warning", "https.get()", options.host, (err, data) => {
+            Firewall.customMetricCWLogs("Warning", "https.get()", resolvedHost, (err, data) => {
                 console.error('  >>>>', `[${YELLOW}Warning${RESET}] (${moduleName}:get) GET - ${argURL}`)
             })
             return (protocol === 'https:' ? https.get(...args) : http.get(...args))
@@ -266,19 +273,20 @@ class Firewall {
         args.shift()
         const options = getHttpOptions(...args)
         const requestHost = new URL(requestURL).host
-        if (Firewall.ALLOWED_HOSTS.find(h => requestHost == h ? true : false) != undefined) {
-            Firewall.customMetricCWLogs("Allowed", "_http_client()", requestHost, (err, data) => {
+        const resolvedHost = resolveHostAddress(requestHost)
+        if (Firewall.ALLOWED_HOSTS.find(h => resolvedHost == h ? true : false) != undefined) {
+            Firewall.customMetricCWLogs("Allowed", "_http_client()", resolvedHost, (err, data) => {
                 console.log('  >>>>', `[${GREEN}Allowed${RESET}] (_http_client) ${options.method || 'GET'} - ${requestURL}`)
             })
             return true
         } else {
-            if (Firewall.BLOCKED_LIST.indexOf(requestHost) >= 0) {
-                Firewall.customMetricCWLogs("Blocked", "_http_client()", requestHost, (err, data) => {
+            if (Firewall.BLOCKED_LIST.indexOf(resolvedHost) >= 0) {
+                Firewall.customMetricCWLogs("Blocked", "_http_client()", resolvedHost, (err, data) => {
                     console.error('  >>>>', `[${RED}Blocked${RESET}] (_http_client) ${options.method || 'GET'} - ${requestURL}`)
                 })
                 return false
             }
-            Firewall.customMetricCWLogs("Warning", "_http_client()", requestHost, (err, data) => {
+            Firewall.customMetricCWLogs("Warning", "_http_client()", resolvedHost, (err, data) => {
                 console.warn('  >>>>', `[${YELLOW}Warning${RESET}] (_http_client) ${options.method || 'GET'} - ${requestURL}`)
             })
             return true
@@ -287,7 +295,6 @@ class Firewall {
 
     static hookCreateConnection(...args) {
         const options = typeof args[0] === 'string' ? new URL(args[0]) : args[0]
-        const protocol = `socket:`
         function connect(...args) {
             const normalized = normalizeArgs(args);
             const options = normalized[0];
@@ -298,20 +305,21 @@ class Firewall {
             }
             return socket.connect(...normalized);
         }
-        const argURL = `socket://${options.host}:${options.port}`
-        if (Firewall.ALLOWED_HOSTS.find(h => options.host.indexOf(h) >= 0 ? true : false) != undefined) {
-            Firewall.customMetricCWLogs("Allowed", "net.connect()", options.host, (err, data) => {
+        const resolvedHost = resolveHostAddress(options.host)
+        const argURL = `socket://${resolvedHost}:${options.port}`
+        if (Firewall.ALLOWED_HOSTS.find(h => resolvedHost.indexOf(h) >= 0 ? true : false) != undefined) {
+            Firewall.customMetricCWLogs("Allowed", "net.connect()", resolvedHost, (err, data) => {
                 console.log('  >>>>', `[${GREEN}Allowed${RESET}] (net:connect) CONNECT - ${argURL}`)
             })
             return connect(...args)
         } else {
-            if (Firewall.BLOCKED_LIST.indexOf(options.host) >= 0) {
-                Firewall.customMetricCWLogs("Blocked", "net.connect()", options.host, (err, data) => {
+            if (Firewall.BLOCKED_LIST.indexOf(resolvedHost) >= 0) {
+                Firewall.customMetricCWLogs("Blocked", "net.connect()", resolvedHost, (err, data) => {
                     console.error('  >>>>', `[${RED}${RESET}] (net:connect) CONNECT - ${argURL}`)
                 })
                 return connect()
             }
-            Firewall.customMetricCWLogs("Warning", "net.connect()", options.host, (err, data) => {
+            Firewall.customMetricCWLogs("Warning", "net.connect()", resolvedHost, (err, data) => {
                 console.warn('  >>>>', `[${YELLOW}Warning${RESET}] (net:connect) CONNECT - ${argURL}`)
             })
             return connect(...args)
@@ -319,28 +327,23 @@ class Firewall {
     }
 
     static hookNetSocketConnect = function (...args) {
-        function getHttpOptions(...args) {
-            if (args.length > 0 && typeof args[0] === 'object') {
-                return args[0]
-            }
-            return {}
-        }
         const requestPort = args.length > 0 ? args[0] : null
         const requestHost = args.length > 1 ? args[1] : 'localhost'
-        if (Firewall.ALLOWED_HOSTS.find(h => requestHost == h ? true : false) != undefined) {
-            Firewall.customMetricCWLogs("Allowed", "socket.connect()", requestHost, (err, data) => {
-                console.log('  >>>>', `[${GREEN}Allowed${RESET}] (net:socket) CONNECT - socket://${requestHost}:${requestPort}`)
+        const resolvedHost = resolveHostAddress(requestHost)
+        if (Firewall.ALLOWED_HOSTS.find(h => resolvedHost == h ? true : false) != undefined) {
+            Firewall.customMetricCWLogs("Allowed", "socket.connect()", resolvedHost, (err, data) => {
+                console.log('  >>>>', `[${GREEN}Allowed${RESET}] (net:socket) CONNECT - socket://${resolvedHost}:${requestPort}`)
             })
             return true
         } else {
-            if (Firewall.BLOCKED_LIST.indexOf(requestHost) >= 0) {
-                Firewall.customMetricCWLogs("Blocked", "socket.connect()", requestHost, (err, data) => {
-                    console.error('  >>>>', `[${RED}Blocked${RESET}] (net:socket) CONNECT - socket://${requestHost}:${requestPort}`)
+            if (Firewall.BLOCKED_LIST.indexOf(resolvedHost) >= 0) {
+                Firewall.customMetricCWLogs("Blocked", "socket.connect()", resolvedHost, (err, data) => {
+                    console.error('  >>>>', `[${RED}Blocked${RESET}] (net:socket) CONNECT - socket://${resolvedHost}:${requestPort}`)
                 })
                 return false
             }
-            Firewall.customMetricCWLogs("Warning", "socket.connect()", requestHost, (err, data) => {
-                console.warn('  >>>>', `[${YELLOW}Warning${RESET}] (net:socket) CONNECT - socket://${requestHost}:${requestPort}`)
+            Firewall.customMetricCWLogs("Warning", "socket.connect()", resolvedHost, (err, data) => {
+                console.warn('  >>>>', `[${YELLOW}Warning${RESET}] (net:socket) CONNECT - socket://${resolvedHost}:${requestPort}`)
             })
             return true
         }
