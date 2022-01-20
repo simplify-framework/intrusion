@@ -34,10 +34,10 @@ class Firewall {
     static AWS_REGION = undefined
     static NAME_SPACE = undefined
 
-    constructor({ allowDomainsOrHostIPs, allowSHA256OfCodeModules, blockedValues }, applicationNamespace) {
+    constructor({ allowDomainsOrHostIPs, allowSHA256OfCodeModules, blockedHashOrHostValues }, applicationNamespace) {
         Firewall.ALLOWED_HOSTS = allowDomainsOrHostIPs || []
         Firewall.ALLOWED_HASHES = allowSHA256OfCodeModules || []
-        Firewall.BLOCKED_LIST = blockedValues || []
+        Firewall.BLOCKED_LIST = blockedHashOrHostValues || []
         Firewall.AWS_REGION = AWS.config.region
         Firewall.NAME_SPACE = applicationNamespace
         class _Module extends Module {

@@ -30,7 +30,7 @@ var { Firewall } = require('simplify-intrusion')
 var nodeFirewall = new Firewall({
     allowDomainsOrHostIPs: [/* a whitelist of domains or IPs that is allowed to access from your code */],
     allowSHA256OfCodeModules: [ /* a whitelist of SHA-256('code') that will be embeded by using module._complie() */],
-    blockedValues: [ /* the blacklist of SHA-256('code'), domains or IPs you want to BLOCK them from your code */]
+    blockedHashOrHostValues: [ /* the blacklist of SHA-256('code'), domains or IPs you want to BLOCK them from your code */]
 }, 'YourApp/Firewall' /* your custom CloudWatch NameSpace */)
 ```
 
@@ -74,7 +74,7 @@ var { Firewall } = require('simplify-intrusion')
 var nodeFirewall = new Firewall({
     allowDomainsOrHostIPs: [],
     allowSHA256OfCodeModules: ["OtbUd5po/kQtu2FweSNa42kOfFYZvlsFuen1xXeOPKs="],
-    blockedValues: []
+    blockedHashOrHostValues: []
 }, 'TestApp/Firewall')
 
 var path = require('path')
