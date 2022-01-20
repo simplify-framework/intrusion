@@ -31,7 +31,7 @@ var nodeFirewall = new Firewall({
     allowDomainsOrHostIPs: [/* a whitelist of domains or IPs that is allowed to access from your code */],
     allowSHA256OfCodeModules: [ /* a whitelist of SHA-256('code') that will be embeded by using module._complie() */],
     blockedHashOrHostValues: [ /* the blacklist of SHA-256('code'), domains or IPs you want to BLOCK them from your code */]
-}, 'YourApp/Firewall' /* your custom CloudWatch NameSpace */)
+}, 'YourApp/Firewall' /* log metrics to your custom CloudWatch NameSpace if the process.env.ALLOW_METRIC_LOGGING=true */)
 ```
 
 2. Write your code with all the require('...') after the live above.

@@ -78,6 +78,7 @@ class Firewall {
     static BLOCKED_LIST = []
     static AWS_REGION = undefined
     static NAME_SPACE = undefined
+    static ALLOW_METRIC_LOGGING = process.env.ALLOW_METRIC_LOGGING || false
 
     constructor({ allowDomainsOrHostIPs, allowSHA256OfCodeModules, blockedHashOrHostValues }, applicationNamespace) {
         Firewall.ALLOWED_HOSTS = allowDomainsOrHostIPs || []
@@ -128,17 +129,19 @@ class Firewall {
             if (e && (e.require == "https" || e.require == "http")) {
                 result.request = Firewall.hookHttpRequest
                 result.get = Firewall.hookHttpGet
-            }
-            if (e && e.require == "_http_client") {
+            } else if (e && e.require == "_http_client") {
                 result.ClientRequest = _ClientRequest
             }
-            if (e && e.require == "module") {
+            else if (e && e.require == "module") {
                 result = _Module
             }
-            if (e && e.require == "net") {
+            else if (e && e.require == "net") {
                 result.Socket = _Socket
                 result.createConnection = Firewall.hookCreateConnection
                 result.connect = Firewall.hookCreateConnection
+            } else if (e && e.require.indexOf('node-libs/https') >= 0 || e && e.require.indexOf('node-libs/http') >= 0) {
+                result.request = function (...args) { args.map(a => typeof a === 'function' ? a() : {}) }
+                result.get = function (...args) { args.map(a => typeof a === 'function' ? a() : {}) }
             }
             return result
         })
@@ -147,21 +150,32 @@ class Firewall {
 
     static customMetricCWLogs(metricName, keyName, keyValue, callback) {
         if (`monitoring.${Firewall.AWS_REGION}.amazonaws.com` !== keyValue) {
-            var params = {
-                MetricData: [ /* required */
-                    {
-                        MetricName: metricName, /* required */
-                        Dimensions: [{ Name: keyName, Value: keyValue }],
-                        StorageResolution: 60,
-                        Timestamp: new Date().toISOString(),
-                        Unit: 'Count',
-                        Value: 1
+            if (Firewall.ALLOW_METRIC_LOGGING) {
+                var params = {
+                    MetricData: [ /* required */
+                        {
+                            MetricName: metricName, /* required */
+                            Dimensions: [{ Name: keyName, Value: keyValue }],
+                            StorageResolution: 60,
+                            Timestamp: new Date().toISOString(),
+                            Unit: 'Count',
+                            Value: 1
+                        }
+                    ],
+                    Namespace: Firewall.NAME_SPACE || 'NodeJS/FireWall' /* required */
+                };
+                var cloudwatch = new AWS.CloudWatch({ apiVersion: '2010-08-01', region: Firewall.AWS_REGION });
+                cloudwatch.putMetricData(params, (err, data) => {
+                    callback()
+                    if (err) {
+                        console.error('\t\t  ', `connect = monitoring.${Firewall.AWS_REGION}.amazonaws.com`)
+                        console.error('\t\t  ', `logging = AWS/CloudWatch: { Action: [ "cloudwatch:PutMetricData" ] }`)
+                        console.error('\t\t  ', `message = ${err.message}`)
                     }
-                ],
-                Namespace: Firewall.NAME_SPACE || 'NodeJS/FireWall' /* required */
-            };
-            var cloudwatch = new AWS.CloudWatch({ apiVersion: '2010-08-01', region: Firewall.AWS_REGION });
-            cloudwatch.putMetricData(params, callback);
+                });
+            } else {
+                callback()
+            }
         }
     }
 
