@@ -1,4 +1,4 @@
-import { Firewall } from 'simplify-intrusion'
+import { Firewall } from '../../index.js'
 
 const firewall = new Firewall({
     allowDomainsOrHostIPs: [],

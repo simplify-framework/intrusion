@@ -1,4 +1,4 @@
-var { Firewall } = require('simplify-intrusion')
+var { Firewall } = require('../../index.js')
 var nodeFirewall = new Firewall({
     allowDomainsOrHostIPs: [],
     allowSHA256OfCodeModules: ["QsPV5N10sTZExAjkbZuQn5yEe0Jkpd4rHRnSxH9dF7Y="],

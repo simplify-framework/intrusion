@@ -4,7 +4,6 @@
   "description": "Simplify Framework IDS/IPS test",
   "type": "commonjs",
   "dependencies": {
-    "simplify-intrusion": "^0.1.2",
     "require-from-string": "^2.0.2"
   }
 }

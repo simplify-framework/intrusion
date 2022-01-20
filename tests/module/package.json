@@ -4,6 +4,5 @@
   "description": "Simplify Framework IDS/IPS test",
   "type": "module",
   "dependencies": {
-    "simplify-intrusion": "^0.1.2"
   }
 }
