@@ -21,6 +21,49 @@ Policies:
 The metrics' namespace is set in the constructor at 2nd parameter: 
 - new Firewall({}, '`TestApp/Firewall`' /* Custom Namespace */)
 
+### HOWTO use the Firewall to detect the intrustion outbound network from your code:
+
+1. Load the library with Firewall configuration:
+
+```Javascript
+var { Firewall } = require('simplify-intrusion')
+var nodeFirewall = new Firewall({
+    allowDomainsOrHostIPs: [/* a whitelist of domains or IPs that is allowed to access from your code */],
+    allowSHA256OfCodeModules: [ /* a whitelist of SHA-256('code') that will be embeded by using module._complie() */],
+    blockedValues: [ /* the blacklist of SHA-256('code'), domains or IPs you want to BLOCK them from your code */]
+}, 'YourApp/Firewall' /* your custom CloudWatch NameSpace */)
+```
+
+2. Write your code with all the require('...') after the live above.
+
+```Javascript
+var http = require('http')
+var https = require('https')
+var { ClientRequest } = require('_http_client_')
+var module = require('module')
+
+/*an example of your lambda code*/
+module.exports = function(event, context, callback) {
+  //DO SOMETHING LIKE CALL EXTERNAL APIS
+  var r = https.request("https://google.com/api/...", (res) => {
+      console.log(res)
+  })
+  r && r.end()
+}
+
+```
+
+3. Detaching the library when everything is done:
+
+```Javascript
+somePromiseOrCallbackFunction().then(response => {
+  nodeFirewall.detach()
+  callback(null, response)
+})
+```
+
+### Running an example of intrusion code.
+
 1. Install Simplify Framework - Intrustion library
 - `npm install simplify-intrustion`
 
