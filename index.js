@@ -6,10 +6,11 @@ var crypto = require('crypto')
 var AWS = require('aws-sdk')
 var http = require('./node-libs/http')
 var https = require('./node-libs/https')
-
+const { connect } = require('http2');
 var { ClientRequest } = require('_http_client')
 var { Module } = require('module')
 var { Socket } = require('net')
+var dgram = require('dgram')
 
 global.eval = function (...args) {
     console.log('  >>>>', `[${RED}Blocked${RESET}] (function:eval) EXEC - ${args}`)
@@ -17,7 +18,7 @@ global.eval = function (...args) {
 const GREEN = '\x1b[32m'
 const RED = '\x1b[31m'
 const YELLOW = '\x1b[33m'
-const WHITE = '\x1b[0m'
+const VIOLET = '\x1b[35m'
 const RESET = '\x1b[0m'
 
 function resolveHostAddress(ipaddress) {
@@ -85,12 +86,14 @@ class Firewall {
     static NAME_SPACE = undefined
     static ALLOW_METRIC_LOGGING = process.env.ALLOW_METRIC_LOGGING || false
 
-    constructor({ allowDomainsOrHostIPs, allowSHA256OfCodeModules, blockedHashOrHostValues }, applicationNamespace) {
+    constructor({ allowDomainsOrHostIPs, allowSHA256OfCodeModules, blockedHashOrHostValues }, applicationNamespace, honeypotReflectionHost) {
         Firewall.ALLOWED_HOSTS = allowDomainsOrHostIPs || []
         Firewall.ALLOWED_HASHES = allowSHA256OfCodeModules || []
         Firewall.BLOCKED_LIST = blockedHashOrHostValues || []
         Firewall.AWS_REGION = AWS.config.region
         Firewall.NAME_SPACE = applicationNamespace
+        Firewall.HONEYPOT_ENDPOINT = honeypotReflectionHost
+
         class _Module extends Module {
             constructor(...args) {
                 super(...args)
@@ -98,17 +101,15 @@ class Firewall {
             _compile(...args) {
                 if (Firewall.hookNodeModuleCompile(...args)) {
                     super._compile(...args)
+                } else {
+                    super._compile('module.exports = ()=>{}', __dirname)
                 }
             }
         }
 
         class _ClientRequest extends ClientRequest {
             constructor(...args) {
-                if (Firewall.hookHttpClientRequest(...args)) {
-                    super(...args)
-                } else {
-                    super()
-                }
+                super(...Firewall.hookHttpClientRequest(...args))
             }
 
             end(...args) {
@@ -116,17 +117,27 @@ class Firewall {
             }
         }
 
-        class _Socket extends Socket {
+        class _TCPSocket extends Socket {
             constructor(...args) {
                 super(...args)
             }
 
             connect(...args) {
-                if (Firewall.hookNetSocketConnect(...args)) {
-                    return super.connect(...args)
-                } else {
-                    return super.connect()
-                }
+                return super.connect(...Firewall.hookNetSocketConnect(...args))
+            }
+        }
+
+        class _UDPSocket extends dgram.Socket {
+            constructor(...args) {
+                super(...args)
+            }
+
+            connect(...args) {
+                return super.connect(...Firewall.hookUDPSocketConnect(...args))
+            }
+
+            send(...args) {
+                super.send(...Firewall.hookUDPSocketSend(...args))
             }
         }
 
@@ -136,14 +147,17 @@ class Firewall {
                 result.get = Firewall.hookHttpGet
             } else if (e && e.require == "_http_client") {
                 result.ClientRequest = _ClientRequest
-            }
-            else if (e && e.require == "module") {
+            } else if (e && e.require == "module") {
                 result = _Module
-            }
-            else if (e && e.require == "net") {
-                result.Socket = _Socket
+            } else if (e && e.require == "net") {
+                /** result.Socket = _TCPSocket - Unstable with cyclic reference */
                 result.createConnection = Firewall.hookCreateConnection
                 result.connect = Firewall.hookCreateConnection
+            } else if (e && e.require == "dgram") {
+                result.Socket = _UDPSocket
+                result.createSocket = function (...args) { return new _UDPSocket(...args) }
+            } else if (e && e.require == "http2") {
+                result.connect = Firewall.hookHttp2Connect
             } else if (e && e.require.indexOf('node-libs/https') >= 0 || e && e.require.indexOf('node-libs/http') >= 0) {
                 result.request = function (...args) { args.map(a => typeof a === 'function' ? a() : {}) }
                 result.get = function (...args) { args.map(a => typeof a === 'function' ? a() : {}) }
@@ -151,6 +165,24 @@ class Firewall {
             return result
         })
         requireHook.attach(path.resolve())
+    }
+
+    static verifyValueInCheckList(checkValue, checkList) {
+        return checkList.find(h => (h === '*' || checkValue.indexOf(h) >= 0) ? true : false) != undefined
+    }
+
+    static redirectHTTPToHoneyPot(args) {
+        const firstArg = args.length > 0 ? args.shift() : undefined
+        let argsReflex = typeof firstArg === 'string' ? new URL(firstArg) : firstArg
+        argsReflex.host = Firewall.HONEYPOT_ENDPOINT || 'honey-pot.local'
+        return [argsReflex, ...args]
+    }
+
+    static redirectSOCKToHoneyPot(args) {
+        if (args.length > 1) {
+            args[1] = Firewall.HONEYPOT_ENDPOINT || 'honey-pot.local'
+        }
+        return args;
     }
 
     static customMetricCWLogs(metricName, keyName, keyValue, callback) {
@@ -171,43 +203,49 @@ class Firewall {
                 };
                 var cloudwatch = new AWS.CloudWatch({ apiVersion: '2010-08-01', region: Firewall.AWS_REGION });
                 cloudwatch.putMetricData(params, (err, data) => {
-                    callback()
+                    callback && callback()
                     if (err) {
-                        console.error('\t\t  ', `connect = monitoring.${Firewall.AWS_REGION}.amazonaws.com`)
-                        console.error('\t\t  ', `logging = AWS/CloudWatch: { Action: [ "cloudwatch:PutMetricData" ] }`)
-                        console.error('\t\t  ', `message = ${err.message}`)
+                        console.log('\t\t  ', `connect = monitoring.${Firewall.AWS_REGION}.amazonaws.com`)
+                        console.log('\t\t  ', `logging = AWS/CloudWatch: { Action: [ "cloudwatch:PutMetricData" ] }`)
+                        console.log('\t\t  ', `message = ${err.message}`)
                     }
                 });
             } else {
-                callback()
+                callback && callback()
             }
+        } else {
+            callback && callback()
         }
     }
 
-    static hookHttpEnd(...args) {
-        console.log("hookHttpEnd", args)
+    static hookHttp2Connect(...args) {
+        const resolvedHost = args.length > 0 ? args[0] : undefined
+        Firewall.customMetricCWLogs("Blocked", "http2.connect()", resolvedHost, () => {
+            console.log('  >>>>', `[${RED}Blocked${RESET}] (http2:connect) OPEN - ${resolvedHost} | ${VIOLET}Unsupported${RESET}`)
+        })
+        return undefined
     }
 
     static hookHttpRequest(...args) {
         const options = typeof args[0] === 'string' ? new URL(args[0]) : args[0]
-        const protocol = `${options.protocol || options.agent.protocol || `ws${options.port == 443 ? 's:' : ':'}`}`
+        const protocol = `${options.protocol || (options.agent || {}).protocol || `${(options.port || 443) === 443 ? 'https:' : 'http:'}`}`
         const moduleName = protocol.replace(':', '')
         const resolvedHost = resolveHostAddress(options.host)
         const argURL = `${protocol}//${resolvedHost}${(options.search ? options.pathname + options.search : options.pathname) || options.path || ''}`
-        if (Firewall.ALLOWED_HOSTS.find(h => resolvedHost.indexOf(h) >= 0 ? true : false) != undefined) {
+        if (Firewall.verifyValueInCheckList(resolvedHost, Firewall.ALLOWED_HOSTS)) {
             Firewall.customMetricCWLogs("Allowed", "https.request()", resolvedHost, (err, data) => {
                 console.log('  >>>>', `[${GREEN}Allowed${RESET}] (${moduleName}:request) ${options.method || 'GET'} - ${argURL}`)
             })
             return (protocol === 'https:' ? https.request(...args) : http.request(...args))
         } else {
-            if (Firewall.BLOCKED_LIST.indexOf(resolvedHost) >= 0) {
+            if (Firewall.verifyValueInCheckList(resolvedHost, Firewall.BLOCKED_LIST)) {
                 Firewall.customMetricCWLogs("Blocked", "https.request()", resolvedHost, (err, data) => {
-                    console.error('  >>>>', `[${RED}${RESET}] (${moduleName}:request) ${options.method || 'GET'} - ${argURL}`)
+                    console.log('  >>>>', `[${RED}Blocked${RESET}] (${moduleName}:request) ${options.method || 'GET'} - ${argURL}`)
                 })
-                return (protocol === 'https:' ? https.request() : http.request())
+                return (protocol === 'https:' ? https.request(...Firewall.redirectHTTPToHoneyPot(args)) : http.request(...Firewall.redirectHTTPToHoneyPot(args)))
             }
             Firewall.customMetricCWLogs("Warning", "https.request()", resolvedHost, (err, data) => {
-                console.warn('  >>>>', `[${YELLOW}Warning${RESET}] (${moduleName}:request) ${options.method || 'GET'} - ${argURL}`)
+                console.log('  >>>>', `[${YELLOW}Warning${RESET}] (${moduleName}:request) ${options.method || 'GET'} - ${argURL}`)
             })
             return (protocol === 'https:' ? https.request(...args) : http.request(...args))
         }
@@ -215,24 +253,24 @@ class Firewall {
 
     static hookHttpGet(...args) {
         const options = typeof args[0] === 'string' ? new URL(args[0]) : typeof args[1] === 'function' ? {} : args[1]
-        const protocol = `${options.protocol || options.agent.protocol || `ws${options.port == 443 ? 's:' : ':'}`}`
+        const protocol = `${options.protocol || (options.agent || {}).protocol || `${(options.port || 443) ? 'https:' : 'http:'}`}`
         const moduleName = protocol.replace(':', '')
         const resolvedHost = resolveHostAddress(options.host)
         const argURL = `${protocol}//${resolvedHost}${(options.search ? options.pathname + options.search : options.pathname) || options.path || ''}`
-        if (Firewall.ALLOWED_HOSTS.find(h => resolvedHost.indexOf(h) >= 0 ? true : false) != undefined) {
+        if (Firewall.verifyValueInCheckList(resolvedHost, Firewall.ALLOWED_HOSTS)) {
             Firewall.customMetricCWLogs("Allowed", "https.get()", resolvedHost, (err, data) => {
                 console.log('  >>>>', `[${GREEN}Allowed${RESET}] (${moduleName}:get) GET - ${argURL}`)
             })
             return (protocol === 'https:' ? https.get(...args) : http.get(...args))
         } else {
-            if (Firewall.BLOCKED_LIST.indexOf(resolvedHost) >= 0) {
+            if (ewall.verifyValueInCheckList(resolvedHost, Firewall.BLOCKED_LIST)) {
                 Firewall.customMetricCWLogs("Blocked", "https.get()", resolvedHost, (err, data) => {
-                    console.error('  >>>>', `[${RED}Blocked${RESET}] (${moduleName}:get) GET - ${argURL}`)
+                    console.log('  >>>>', `[${RED}Blocked${RESET}] (${moduleName}:get) GET - ${argURL}`)
                 })
-                return (protocol === 'https:' ? https.get() : http.get())
+                return (protocol === 'https:' ? https.get(...Firewall.redirectHTTPToHoneyPot(args)) : http.get(...Firewall.redirectHTTPToHoneyPot(args)))
             }
             Firewall.customMetricCWLogs("Warning", "https.get()", resolvedHost, (err, data) => {
-                console.error('  >>>>', `[${YELLOW}Warning${RESET}] (${moduleName}:get) GET - ${argURL}`)
+                console.log('  >>>>', `[${YELLOW}Warning${RESET}] (${moduleName}:get) GET - ${argURL}`)
             })
             return (protocol === 'https:' ? https.get(...args) : http.get(...args))
         }
@@ -243,20 +281,20 @@ class Firewall {
         const moduleName = args.length > 1 ? args[1] : ''
         const moduleHashValue = crypto.createHash('sha256').update(moduleCode).digest('base64')
 
-        if (Firewall.ALLOWED_HASHES.find(h => h === moduleHashValue ? true : false) != undefined) {
+        if (Firewall.verifyValueInCheckList(moduleHashValue, Firewall.ALLOWED_HASHES)) {
             Firewall.customMetricCWLogs("Allowed", "module._compile()", moduleHashValue, (err, data) => {
                 console.log('  >>>>', `[${GREEN}Allowed${RESET}] (module:compile) ${moduleName ? moduleName : 'SHA256'} - ${moduleHashValue}`)
             })
             return true
         } else {
-            if (Firewall.BLOCKED_LIST.indexOf(moduleHashValue) >= 0) {
+            if (Firewall.verifyValueInCheckList(moduleHashValue, Firewall.BLOCKED_LIST)) {
                 Firewall.customMetricCWLogs("Blocked", "module._compile()", moduleHashValue, (err, data) => {
-                    console.error('  >>>>', `[${RED}Blocked${RESET}] (module:compile) ${moduleName ? moduleName : 'SHA256'} - ${moduleHashValue}`)
+                    console.log('  >>>>', `[${RED}Blocked${RESET}] (module:compile) ${moduleName ? moduleName : 'SHA256'} - ${moduleHashValue}`)
                 })
                 return false
             }
             Firewall.customMetricCWLogs("Warning", "module._compile()", moduleHashValue, (err, data) => {
-                console.warn('  >>>>', `[${YELLOW}Warning${RESET}] (module:compile) ${moduleName ? moduleName : 'SHA256'} - ${moduleHashValue}`)
+                console.log('  >>>>', `[${YELLOW}Warning${RESET}] (module:compile) ${moduleName ? moduleName : 'SHA256'} - ${moduleHashValue}`)
             })
             return true
         }
@@ -274,22 +312,22 @@ class Firewall {
         const options = getHttpOptions(...args)
         const requestHost = new URL(requestURL).host
         const resolvedHost = resolveHostAddress(requestHost)
-        if (Firewall.ALLOWED_HOSTS.find(h => resolvedHost == h ? true : false) != undefined) {
+        if (Firewall.verifyValueInCheckList(resolvedHost, Firewall.ALLOWED_HOSTS)) {
             Firewall.customMetricCWLogs("Allowed", "_http_client()", resolvedHost, (err, data) => {
                 console.log('  >>>>', `[${GREEN}Allowed${RESET}] (_http_client) ${options.method || 'GET'} - ${requestURL}`)
             })
-            return true
+            return args
         } else {
-            if (Firewall.BLOCKED_LIST.indexOf(resolvedHost) >= 0) {
+            if (Firewall.verifyValueInCheckList(resolvedHost, Firewall.BLOCKED_LIST)) {
                 Firewall.customMetricCWLogs("Blocked", "_http_client()", resolvedHost, (err, data) => {
-                    console.error('  >>>>', `[${RED}Blocked${RESET}] (_http_client) ${options.method || 'GET'} - ${requestURL}`)
+                    console.log('  >>>>', `[${RED}Blocked${RESET}] (_http_client) ${options.method || 'GET'} - ${requestURL}`)
                 })
-                return false
+                return Firewall.redirectHTTPToHoneyPot(args)
             }
             Firewall.customMetricCWLogs("Warning", "_http_client()", resolvedHost, (err, data) => {
-                console.warn('  >>>>', `[${YELLOW}Warning${RESET}] (_http_client) ${options.method || 'GET'} - ${requestURL}`)
+                console.log('  >>>>', `[${YELLOW}Warning${RESET}] (_http_client) ${options.method || 'GET'} - ${requestURL}`)
             })
-            return true
+            return args
         }
     }
 
@@ -299,7 +337,6 @@ class Firewall {
             const normalized = normalizeArgs(args);
             const options = normalized[0];
             const socket = new Socket(options);
-
             if (options.timeout) {
                 socket.setTimeout(options.timeout);
             }
@@ -307,45 +344,79 @@ class Firewall {
         }
         const resolvedHost = resolveHostAddress(options.host)
         const argURL = `socket://${resolvedHost}:${options.port}`
-        if (Firewall.ALLOWED_HOSTS.find(h => resolvedHost.indexOf(h) >= 0 ? true : false) != undefined) {
+        if (Firewall.verifyValueInCheckList(resolvedHost, Firewall.ALLOWED_HOSTS)) {
             Firewall.customMetricCWLogs("Allowed", "net.connect()", resolvedHost, (err, data) => {
-                console.log('  >>>>', `[${GREEN}Allowed${RESET}] (net:connect) CONNECT - ${argURL}`)
+                console.log('  >>>>', `[${GREEN}Allowed${RESET}] (net:connect) OPEN - ${argURL}`)
             })
             return connect(...args)
         } else {
-            if (Firewall.BLOCKED_LIST.indexOf(resolvedHost) >= 0) {
+            if (Firewall.verifyValueInCheckList(resolvedHost, Firewall.BLOCKED_LIST)) {
                 Firewall.customMetricCWLogs("Blocked", "net.connect()", resolvedHost, (err, data) => {
-                    console.error('  >>>>', `[${RED}${RESET}] (net:connect) CONNECT - ${argURL}`)
+                    console.log('  >>>>', `[${RED}Blocked${RESET}] (net:connect) OPEN - ${argURL}`)
                 })
-                return connect()
+                return connect(...Firewall.redirectHTTPToHoneyPot(args))
             }
             Firewall.customMetricCWLogs("Warning", "net.connect()", resolvedHost, (err, data) => {
-                console.warn('  >>>>', `[${YELLOW}Warning${RESET}] (net:connect) CONNECT - ${argURL}`)
+                console.log('  >>>>', `[${YELLOW}Warning${RESET}] (net:connect) OPEN - ${argURL}`)
             })
             return connect(...args)
         }
     }
 
     static hookNetSocketConnect = function (...args) {
+        return Firewall.hookSocketConnect('net', ...args)
+    }
+
+    static hookUDPSocketConnect = function (...args) {
+        return Firewall.hookSocketConnect('udp', ...args)
+    }
+
+    static hookSocketConnect = function (...args) {
+        const socketType = args.length > 0 ? args.shift() : null
         const requestPort = args.length > 0 ? args[0] : null
         const requestHost = args.length > 1 ? args[1] : 'localhost'
         const resolvedHost = resolveHostAddress(requestHost)
-        if (Firewall.ALLOWED_HOSTS.find(h => resolvedHost == h ? true : false) != undefined) {
+
+        if (Firewall.verifyValueInCheckList(resolvedHost, Firewall.ALLOWED_HOSTS)) {
             Firewall.customMetricCWLogs("Allowed", "socket.connect()", resolvedHost, (err, data) => {
-                console.log('  >>>>', `[${GREEN}Allowed${RESET}] (net:socket) CONNECT - socket://${resolvedHost}:${requestPort}`)
+                console.log('  >>>>', `[${GREEN}Allowed${RESET}] (${socketType}:socket) OPEN - socket://${resolvedHost}:${requestPort}`)
             })
-            return true
+            return args
         } else {
-            if (Firewall.BLOCKED_LIST.indexOf(resolvedHost) >= 0) {
+            if (Firewall.verifyValueInCheckList(resolvedHost, Firewall.BLOCKED_LIST)) {
                 Firewall.customMetricCWLogs("Blocked", "socket.connect()", resolvedHost, (err, data) => {
-                    console.error('  >>>>', `[${RED}Blocked${RESET}] (net:socket) CONNECT - socket://${resolvedHost}:${requestPort}`)
+                    console.log('  >>>>', `[${RED}Blocked${RESET}] (${socketType}:socket) OPEN - socket://${resolvedHost}:${requestPort}`)
                 })
-                return false
+                return Firewall.redirectSOCKToHoneyPot(args)
             }
             Firewall.customMetricCWLogs("Warning", "socket.connect()", resolvedHost, (err, data) => {
-                console.warn('  >>>>', `[${YELLOW}Warning${RESET}] (net:socket) CONNECT - socket://${resolvedHost}:${requestPort}`)
+                console.log('  >>>>', `[${YELLOW}Warning${RESET}] (${socketType}:socket) OPEN - socket://${resolvedHost}:${requestPort}`)
             })
-            return true
+            return args
+        }
+    }
+
+    static hookUDPSocketSend = function (...args) {
+        const requestPort = args.length > 1 ? args[1] : null
+        const requestHost = args.length > 2 ? args[2] : 'localhost'
+        const resolvedHost = resolveHostAddress(requestHost)
+        if (Firewall.verifyValueInCheckList(resolvedHost, Firewall.ALLOWED_HOSTS)) {
+            Firewall.customMetricCWLogs("Allowed", "socket.send()", resolvedHost, (err, data) => {
+                console.log('  >>>>', `[${GREEN}Allowed${RESET}] (udp:socket) SEND - socket://${resolvedHost}:${requestPort}`)
+            })
+            return args
+        } else {
+            if (Firewall.verifyValueInCheckList(resolvedHost, Firewall.BLOCKED_LIST)) {
+                Firewall.customMetricCWLogs("Blocked", "socket.send()", resolvedHost, (err, data) => {
+                    console.log('  >>>>', `[${RED}Blocked${RESET}] (udp:socket) SEND - socket://${resolvedHost}:${requestPort}`)
+                })
+                const message = args.shift()
+                return [message, ...Firewall.redirectSOCKToHoneyPot(args)]
+            }
+            Firewall.customMetricCWLogs("Warning", "socket.send()", resolvedHost, (err, data) => {
+                console.log('  >>>>', `[${YELLOW}Warning${RESET}] (udp:socket) SEND - socket://${resolvedHost}:${requestPort}`)
+            })
+            return args
         }
     }
 
