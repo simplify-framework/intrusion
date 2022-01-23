@@ -45,50 +45,57 @@ function getElementId() {
   return this.absPath ? this.absPath : this.require;
 }
 
+Object.defineProperty(global, '__callerFile', {
+  get: function () {
+    return process.argv[1]
+  }
+});
+
 var lib = {
   old_reference: null,
   projectPath: null,
   event_require: null,
   data: [],
-  reset: function() {
+  reset: function () {
     this.data = [];
   },
-  require: function(library) {
+  require: function (library) {
     var explicitSkip = arguments.length >= 2 && arguments[1] == "__skip";
-    if(explicitSkip) {
+    if (explicitSkip) {
       return console.require_hook.log("explicit skip on require", library);
     }
     var e = lib.process(library);
-    e.path = path.resolve('node_modules',`${library}`)
+    e.path = path.resolve('node_modules', `${library}`)
+    e.caller = __callerFile
     var packageFile = path.resolve(e.path, 'package.json')
     if (fs.existsSync(packageFile)) {
       e.version = JSON.parse(fs.readFileSync(packageFile)).version
     }
     var result = lib.old_reference.apply(this, arguments);
-    if(lib.event_require) {
+    if (lib.event_require) {
       result = lib.event_require(result, e);
     }
     return result;
   },
-  process: function(library) {
+  process: function (library) {
     return this.addLibrary(library);
   },
-  addLibrary: function(library) {
+  addLibrary: function (library) {
     var callingFile = this.getCallerFile();
-    if(!callingFile) {
+    if (!callingFile) {
       return; // ignore
     }
     var thirdParty = this.isLibrary3rdParty(library);
     var absPath = undefined; // undefined if third party library
     var absPathResolvedCorrectly = undefined;
-    if(!thirdParty) { // not third party, let's fetch absolute path
+    if (!thirdParty) { // not third party, let's fetch absolute path
       var res = this.resolveLibraryAbsPath(callingFile, library);
       absPath = res.absPath;
       absPathResolvedCorrectly = res.absPathResolvedCorrectly;
-      if(absPathResolvedCorrectly) {
+      if (absPathResolvedCorrectly) {
         assert(fs.existsSync(absPath), "asserting that the abs path resolving code is working as expected");
       }
-      if(_.find(this.data, {absPath: absPath})) { // already added
+      if (_.find(this.data, { absPath: absPath })) { // already added
         return null;
       }
     }
@@ -107,49 +114,49 @@ var lib = {
     this.data.push(e);
     return e;
   },
-  isTestOnly: function(callingFile) {
+  isTestOnly: function (callingFile) {
     return _.intersection(callingFile.split(path.sep), config.testOnlySubPath).length !== 0;
   },
-  isLibrary3rdParty: function(library) {
+  isLibrary3rdParty: function (library) {
     return library.indexOf(path.sep) === -1;
   },
-  isAbsPath: function(library) {
+  isAbsPath: function (library) {
     return library.indexOf(path.sep) >= 0;
   },
-  resolveLibraryAbsPath: function(callingFile, library) {
-    var res = {absPath: null, absPathResolvedCorrectly: false};
-    if(this.isAbsPath(library)) {
+  resolveLibraryAbsPath: function (callingFile, library) {
+    var res = { absPath: null, absPathResolvedCorrectly: false };
+    if (this.isAbsPath(library)) {
       res.absPath = library;
       try {
         res.absPath = require.resolve(res.absPath);
         res.absPathResolvedCorrectly = true;
-      } catch(e) {
+      } catch (e) {
       }
     } else {
       res.absPath = path.normalize(path.join(path.dirname(callingFile), library));
       try {
         res.absPath = require.resolve(res.absPath);
         res.absPathResolvedCorrectly = true;
-      } catch(e) {
+      } catch (e) {
       }
     }
     return res;
   },
-  isBelongsToProject: function(file) {
+  isBelongsToProject: function (file) {
     var belongs = path.relative(this.projectPath, file).indexOf("..") === -1;
-    if(belongs) {
+    if (belongs) {
       return belongs;
     }
-    if(config.alternateProjectPaths.length) {
-      for(var i = 0; i < config.alternateProjectPaths.length; i++) {
-        if(config.alternateProjectPaths[i].indexOf(path.sep) === 0) {
+    if (config.alternateProjectPaths.length) {
+      for (var i = 0; i < config.alternateProjectPaths.length; i++) {
+        if (config.alternateProjectPaths[i].indexOf(path.sep) === 0) {
           belongs = path.relative(config.alternateProjectPaths[i], file).indexOf("..") === -1;
-          if(belongs) {
+          if (belongs) {
             return belongs;
           }
         } else {
           belongs = file.indexOf(config.alternateProjectPaths[i]) !== -1;
-          if(belongs) {
+          if (belongs) {
             return belongs;
           }
         }
@@ -157,19 +164,19 @@ var lib = {
     }
     return false;
   },
-  getCallerFile: function() {
+  getCallerFile: function () {
     var _prepareStackTrace = Error.prepareStackTrace;
     try {
-      Error.prepareStackTrace = function(err, stack) { return stack; };
+      Error.prepareStackTrace = function (err, stack) { return stack; };
       var err = new Error();
       var currentFile = err.stack.shift().getFileName();
-      while(err.stack.length) {
+      while (err.stack.length) {
         var callerFile = err.stack.shift().getFileName();
-        if(callerFile != currentFile && this.safeCallerList.indexOf(callerFile) === -1) {
+        if (callerFile != currentFile && this.safeCallerList.indexOf(callerFile) === -1) {
           return callerFile;
         }
       }
-    } catch(err) {
+    } catch (err) {
     } finally {
       Error.prepareStackTrace = _prepareStackTrace;
     }
@@ -180,11 +187,11 @@ var lib = {
 
 module.exports = {
   config: config,
-  setConfigSource: function(cnfg) {
+  setConfigSource: function (cnfg) {
     config = this.config = cnfg;
   },
-  attach: function(projectPath) {
-    if(lib.old_reference) {
+  attach: function (projectPath) {
+    if (lib.old_reference) {
       throw new Error("already attached");
     }
     lib.reset();
@@ -194,32 +201,32 @@ module.exports = {
     Module.prototype.require = lib.require;
     helper.copyProperties(lib.old_reference, lib.require);
   },
-  detach: function() {
-    if(!lib.old_reference) {
+  detach: function () {
+    if (!lib.old_reference) {
       throw new Error("not attached");
     }
     Module.prototype.require = lib.old_reference;
     lib.old_reference = null;
   },
-  setEvent: function(event) {
+  setEvent: function (event) {
     lib.event_require = event;
   },
-  getData: function() {
+  getData: function () {
     return lib.data;
   },
-  getData_localToProject: function() {
-    return this.filterData({localToProject: true});
+  getData_localToProject: function () {
+    return this.filterData({ localToProject: true });
   },
-  getData_thirdParty: function() {
-    return this.filterData({native: false, thirdParty: true});
+  getData_thirdParty: function () {
+    return this.filterData({ native: false, thirdParty: true });
   },
-  getData_localThirdParty: function() {
-    return this.filterData({native: false, localToProject: true, thirdParty: true});
+  getData_localThirdParty: function () {
+    return this.filterData({ native: false, localToProject: true, thirdParty: true });
   },
-  filterData: function(filter) {
+  filterData: function (filter) {
     return _.filter(lib.data, filter);
   },
-  getOriginalRequire: function() {
+  getOriginalRequire: function () {
     return original_module_require;
   }
 };
