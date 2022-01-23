@@ -85,6 +85,7 @@ module.exports = function () {
             if (client2) {
                 const req = client2.request({ ':method': 'GET' });
                 req.on('response', (headers) => {
+                    console.log(headers[':status'])
                     client2.close(); resolve()
                 });
                 req.on('error', err => { console.log(`http2`, err.message); resolve() })

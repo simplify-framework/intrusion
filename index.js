@@ -85,6 +85,7 @@ class Firewall {
     static AWS_REGION = undefined
     static NAME_SPACE = undefined
     static ALLOW_METRIC_LOGGING = process.env.ALLOW_METRIC_LOGGING || false
+    static __Socket = undefined
 
     constructor({ allowDomainsOrHostIPs, allowSHA256OfCodeModules, blockedHashOrHostValues }, applicationNamespace, honeypotReflectionHost) {
         Firewall.ALLOWED_HOSTS = allowDomainsOrHostIPs || []
@@ -141,6 +142,10 @@ class Firewall {
             }
         }
 
+        function _TCPSocketWrapper(...args) {
+            return Firewall.__Socket(...args)
+        }
+
         requireHook.setEvent(function (result, e) {
             if (e && (e.require == "https" || e.require == "http")) {
                 result.request = Firewall.hookHttpRequest
@@ -150,7 +155,6 @@ class Firewall {
             } else if (e && e.require == "module") {
                 result = _Module
             } else if (e && e.require == "net") {
-                /** result.Socket = _TCPSocket - Unstable with cyclic reference */
                 result.createConnection = Firewall.hookCreateConnection
                 result.connect = Firewall.hookCreateConnection
             } else if (e && e.require == "dgram") {
@@ -168,19 +172,19 @@ class Firewall {
     }
 
     static verifyValueInCheckList(checkValue, checkList) {
-        return checkList.find(h => (h === '*' || checkValue.indexOf(h) >= 0) ? true : false) != undefined
+        return checkList.find(h => (h === '*' || (h && checkValue && checkValue.indexOf(h) >= 0)) ? true : false) != undefined
     }
 
     static redirectHTTPToHoneyPot(args) {
         const firstArg = args.length > 0 ? args.shift() : undefined
         let argsReflex = typeof firstArg === 'string' ? new URL(firstArg) : firstArg
-        argsReflex.host = Firewall.HONEYPOT_ENDPOINT || 'honey-pot.local'
+        argsReflex.host = Firewall.HONEYPOT_ENDPOINT
         return [argsReflex, ...args]
     }
 
     static redirectSOCKToHoneyPot(args) {
         if (args.length > 1) {
-            args[1] = Firewall.HONEYPOT_ENDPOINT || 'honey-pot.local'
+            args[1] = Firewall.HONEYPOT_ENDPOINT
         }
         return args;
     }
@@ -422,6 +426,7 @@ class Firewall {
 
     detach() {
         requireHook.detach()
+        return true
     }
 }
 

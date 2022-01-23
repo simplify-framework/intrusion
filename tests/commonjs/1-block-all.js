@@ -3,13 +3,13 @@ var firewall = new Firewall({
     allowDomainsOrHostIPs: [],
     allowSHA256OfCodeModules: [],
     blockedHashOrHostValues: ['*']
-}, 'TestApp/Firewall')
+}, 'TestApp/Firewall', 'dev.null.org')
 
 module.exports = function () {
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
         require('./app-2')().then(() => {
             firewall.detach()
             resolve()
-        }).catch(err => resolve(err))
+        }).catch(err => reject(err))
     })
 }

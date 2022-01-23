@@ -72,7 +72,7 @@ module.exports = function () {
                 });
             }),
             new Promise((resolve) => {
-                const usock = dgram.createSocket('udp4');
+                const usock = new dgram.Socket('udp4');
                 usock.connect(53, '8.8.4.4', () => {
                     usock.close()
                     resolve()

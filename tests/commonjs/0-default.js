@@ -3,7 +3,7 @@ var firewall = new Firewall({
     allowDomainsOrHostIPs: [],
     allowSHA256OfCodeModules: [],
     blockedHashOrHostValues: []
-}, 'TestApp/Firewall')
+}, 'TestApp/Firewall', 'dev.null.org')
 
 module.exports = function() {
     return new Promise((resolve) => {
