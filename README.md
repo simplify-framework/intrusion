@@ -6,9 +6,11 @@
 - Host Intrusion Detection and Prevention
   + Detect modules are loaded by require('module').
   + Detect modules are compiled by module._compile('code').
+  + Block or allow some modules by names or by hashcodes.
 
 - Network Intrusion Detection and Prevention
   + Detect HTTP/HTTPS/UDP/TCP outbound connection.
+  + Block or allow by domain names or IP addresses.
   + Redirect the outbound connection to a honeypot.
 
 ### Setup your AWS environment or IAM Role in your Lambdas with this permission:
@@ -43,10 +45,10 @@ var nodeFirewall = new IDS({
     ], blockDomainsOrHostIPs: [
       /* the blacklist of domains or IPs you want to BLOCK them from your code */
     ] },
-    host: { allowSHA256OfCodeModules: [
-      /* a whitelist of SHA-256('code') that will be embeded by using module._complie() */
-    ], blockSHA256OfCodeModules: [
-      /* the blacklist of SHA-256('code') that contains the untrusted HASH of modules */
+    host: { allowModuleOrSHA256OfCode: [
+      /* a whitelist of module name or SHA-256('code') that will be embeded by using module._complie() */
+    ], blockModuleOrSHA256OfCode: [
+      /* the blacklist of module name or SHA-256('code') that contains the untrusted HASH of modules */
     ] }
   },
   'YourApp/IDS' /* log metrics to your custom CloudWatch NameSpace if the process.env.ALLOW_METRIC_LOGGING=true */,
@@ -92,7 +94,7 @@ somePromiseOrCallbackFunction().then(response => {
 var { IDS } = require('simplify-intrusion')
 var nodeFirewall = new IDS({
     network: { allowDomainsOrHostIPs: [], blockDomainsOrHostIPs: [] },
-    host: { allowSHA256OfCodeModules: ['OtbUd5po/kQtu2FweSNa42kOfFYZvlsFuen1xXeOPKs='], blockSHA256OfCodeModules: ['*'] }
+    host: { allowModuleOrSHA256OfCode: ['OtbUd5po/kQtu2FweSNa42kOfFYZvlsFuen1xXeOPKs='], blockModuleOrSHA256OfCode: ['*'] }
 }, 'TestApp/IDS', 'dev.null.org')
 
 var path = require('path')

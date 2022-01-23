@@ -90,13 +90,13 @@ class IDS {
 
     constructor({
         network/*: { allowDomainsOrHostIPs, blockDomainsOrHostIPs }*/,
-        host/*: { allowSHA256OfCodeModules, blockSHA256OfCodeModules }*/ },
+        host/*: { allowModuleOrSHA256OfCode, blockModuleOrSHA256OfCode }*/ },
         applicationNamespace,
         honeypotReflectionHost) {
         IDS.ALLOWED_HOSTS = (network || {}).allowDomainsOrHostIPs || []
-        IDS.ALLOWED_MODULES = (host || {}).allowSHA256OfCodeModules || []
+        IDS.ALLOWED_MODULES = (host || {}).allowModuleOrSHA256OfCode || []
         IDS.BLOCKED_HOSTS = (network || {}).blockDomainsOrHostIPs || []
-        IDS.BLOCKED_MODULES = (host || {}).blockSHA256OfCodeModules || []
+        IDS.BLOCKED_MODULES = (host || {}).blockModuleOrSHA256OfCode || []
         IDS.AWS_REGION = AWS.config.region
         IDS.NAME_SPACE = applicationNamespace
         IDS.HONEYPOT_ENDPOINT = honeypotReflectionHost
