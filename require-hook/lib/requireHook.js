@@ -59,6 +59,11 @@ var lib = {
       return console.require_hook.log("explicit skip on require", library);
     }
     var e = lib.process(library);
+    e.path = path.resolve('node_modules',`${library}`)
+    var packageFile = path.resolve(e.path, 'package.json')
+    if (fs.existsSync(packageFile)) {
+      e.version = JSON.parse(fs.readFileSync(packageFile)).version
+    }
     var result = lib.old_reference.apply(this, arguments);
     if(lib.event_require) {
       result = lib.event_require(result, e);

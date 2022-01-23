@@ -41,14 +41,16 @@ The metrics' namespace is set in the constructor at 2nd parameter:
 var { IDS } = require('simplify-intrusion')
 var nodeFirewall = new IDS({
     network: { allowDomainsOrHostIPs: [
-      /* a whitelist of domains or IPs that is allowed to access from your code */
+      /* a whitelist of domains or IPs that is allowed to access from your code, startsWith('string') rule */
     ], blockDomainsOrHostIPs: [
-      /* the blacklist of domains or IPs you want to BLOCK them from your code */
+      /* the blacklist of domains or IPs you want to BLOCK them from your code, startsWith('string') rule */
+      /* example: ['*'] => block all outbound network connection from host, allowed all connections by default */
     ] },
     host: { allowModuleOrSHA256OfCode: [
-      /* a whitelist of module name or SHA-256('code') that will be embeded by using module._complie() */
+      /* a whitelist of module name or SHA-256('code') that will be embeded by using module._complie(), startsWith('string') rule */
     ], blockModuleOrSHA256OfCode: [
-      /* the blacklist of module name or SHA-256('code') that contains the untrusted HASH of modules */
+      /* the blacklist of module name or SHA-256('code') that contains the untrusted HASH of modules, startsWith('string') rule */
+      /* example: ['QsPV5N10sTZExAjkbZuQn5yEe0Jkpd4rHRnSxH9dF7Y=', 'buffer:4.9.2', 'request:2.88.'] */
     ] }
   },
   'YourApp/IDS' /* log metrics to your custom CloudWatch NameSpace if the process.env.ALLOW_METRIC_LOGGING=true */,

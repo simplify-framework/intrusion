@@ -13,7 +13,7 @@ var { Socket } = require('net')
 var dgram = require('dgram')
 
 global.eval = function (...args) {
-    console.log('  >>>>', `[${RED}Blocked${RESET}] (function:eval) EXEC - ${args}`)
+    console.log('  >>>>', `[${RED}Blocked${RESET}] (function:eval) EVAL - ${args}`)
 }
 const GREEN = '\x1b[32m'
 const RED = '\x1b[31m'
@@ -175,15 +175,15 @@ class IDS {
             if (IDS.hookNodeModuleLoad(e)) {
                 return result
             } else {
-                console.log(result)
                 return {}
             }
         })
         requireHook.attach(path.resolve())
     }
 
-    static verifyValueInCheckList(checkValue, checkList) {
-        return checkList.find(h => (h === '*' || (h && checkValue && checkValue.indexOf(h) >= 0)) ? true : false) != undefined
+    static verifyValueInCheckList(checkValue, checkList, exactEquals) {
+        const comparationResult = h => h === '*' || (h && checkValue && (exactEquals ? checkValue == h : checkValue.startsWith(h)))
+        return checkList.find(h => comparationResult(h) ? true : false) != undefined
     }
 
     static redirectHTTPToHoneyPot(args) {
@@ -293,30 +293,29 @@ class IDS {
 
     static hookNodeModuleCompile(...args) {
         const moduleCode = args[0]
-        const moduleName = args.length > 1 ? args[1] : ''
         const moduleHashValue = crypto.createHash('sha256').update(moduleCode).digest('base64')
-        return IDS.hookNodeModule(moduleHashValue, moduleName, 'compile')
+        return IDS.hookNodeModule(moduleHashValue, 'CODE', '_compile')
     }
 
     static hookNodeModuleLoad(module) {
-        return IDS.hookNodeModule(`require('${module.require}')`, `FILE`, 'load')
+        return IDS.hookNodeModule(`${module.require}${module.version ? ':' + module.version : ''}`, `FILE`, 'load', module.json ? 'json' : module.native ? 'native' : 'module')
     }
 
-    static hookNodeModule(moduleValue, moduleName, moduleType) {
-        if (IDS.verifyValueInCheckList(moduleValue, IDS.ALLOWED_MODULES)) {
-            IDS.customMetricCWLogs("Allowed", "module._compile()", moduleValue, (err, data) => {
-                console.log('  >>>>', `[${GREEN}Allowed${RESET}] (module:${moduleType}) ${moduleName ? moduleName : moduleType} - ${moduleValue}`)
+    static hookNodeModule(moduleValue, moduleName, moduleMode, moduleType) {
+        if (IDS.verifyValueInCheckList(moduleValue, IDS.ALLOWED_MODULES, false)) {
+            IDS.customMetricCWLogs("Allowed", `module.${moduleMode}()`, moduleValue, (err, data) => {
+                console.log('  >>>>', `[${GREEN}Allowed${RESET}] (module:${moduleMode}) ${moduleName ? moduleName : moduleMode} - ${moduleValue} ${moduleType ? 'type=' + moduleType : ''}`)
             })
             return true
         } else {
-            if (IDS.verifyValueInCheckList(moduleValue, IDS.BLOCKED_MODULES)) {
-                IDS.customMetricCWLogs("Blocked", "module._compile()", moduleValue, (err, data) => {
-                    console.log('  >>>>', `[${RED}Blocked${RESET}] (module:${moduleType}) ${moduleName ? moduleName : moduleType} - ${moduleValue}`)
+            if (IDS.verifyValueInCheckList(moduleValue, IDS.BLOCKED_MODULES, false)) {
+                IDS.customMetricCWLogs("Blocked", `module.${moduleMode}()`, moduleValue, (err, data) => {
+                    console.log('  >>>>', `[${RED}Blocked${RESET}] (module:${moduleMode}) ${moduleName ? moduleName : moduleMode} - ${moduleValue} ${moduleType ? 'type=' + moduleType : ''}`)
                 })
                 return false
             }
-            IDS.customMetricCWLogs("Warning", "module._compile()", moduleValue, (err, data) => {
-                console.log('  >>>>', `[${YELLOW}Warning${RESET}] (module:${moduleType}) ${moduleName ? moduleName : moduleType} - ${moduleValue}`)
+            IDS.customMetricCWLogs("Warning", `module.${moduleMode}()`, moduleValue, (err, data) => {
+                console.log('  >>>>', `[${YELLOW}Warning${RESET}] (module:${moduleMode}) ${moduleName ? moduleName : moduleMode} - ${moduleValue} ${moduleType ? 'type=' + moduleType : ''}`)
             })
             return true
         }
