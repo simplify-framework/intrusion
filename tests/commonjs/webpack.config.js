@@ -1,6 +1,16 @@
+const fs = require('fs')
 const path = require('path')
 const nodeExternals = require('webpack-node-externals')
 const LicenseCheckerWebpackPlugin = require("license-checker-webpack-plugin")
+var nodeModules = {};
+
+// note the path.resolve(__dirname, ...) part
+// without it, eslint-import-resolver-webpack fails
+// since eslint might be invoked with different cwd
+fs.readdirSync(path.resolve(__dirname, 'node_modules'))
+    .filter(x => ['.bin'].indexOf(x) === -1)
+    .forEach(mod => { nodeModules[mod] = `commonjs ${mod}`; });
+
 module.exports = {
     entry: {
         index: './app-1.js',
@@ -12,12 +22,13 @@ module.exports = {
         libraryTarget: 'umd'
     },
     target: 'node',
+    mode: 'production',
     node: {
         // Need this when working with express, otherwise the build fails
         __dirname: false,     // if you don't put this is, __dirname
         __filename: false,    // and __filename return blank or /
     },
-    externals: [nodeExternals()], // Need this to avoid error when working with Express
+    externals: { '_http_client':'commonjs _http_client', ...nodeModules}, // Need this to avoid error when working with Express
     module: {
         rules: [
             {

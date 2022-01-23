@@ -278,7 +278,7 @@ class IDS {
             })
             return (protocol === 'https:' ? https.get(...args) : http.get(...args))
         } else {
-            if (ewall.verifyValueInCheckList(resolvedHost, IDS.BLOCKED_HOSTS)) {
+            if (IDS.verifyValueInCheckList(resolvedHost, IDS.BLOCKED_HOSTS)) {
                 IDS.customMetricCWLogs("Blocked", "https.get()", resolvedHost, (err, data) => {
                     console.log('  >>>>', `[${RED}Blocked${RESET}] (${moduleName}:get) GET - ${argURL}`)
                 })

@@ -1,4 +1,7 @@
 
+function checkResult(host, value, defaultValue) {
+    return defaultValue ? defaultValue : host == null ? 'UNKNOWN' : host == value ? 'RECEIVED' : 'BLOCK'
+}
 module.exports = function () {
     return new Promise((resolve) => {
         Promise.all([
@@ -16,12 +19,23 @@ module.exports = function () {
                 var httpClient = require('_http_client')
                 var res = new httpClient.ClientRequest("http://google.com", { headers: { "Content-Type": "application/json" }, method: 'GET' }, (res) => {
                     res.on('data', (data) => {
-                        console.log(`\t\t_http_client.ClientRequest("http://google.com") - ${data.length}`)
+                        console.log(`\t\t_http_client.ClientRequest("http://google.com") - ${data.length}`, checkResult(res.socket._host, 'google.com'))
                     });
                 })
                 res && res.on('error', err => { console.log(`\t\t_http_client.ClientRequest("http://google.com")`, err.message) })
                 res && res.end()
                 resolve()
+            }),
+            new Promise((resolve) => {
+                var http = require('http')
+                var r = http.get("http://google.com/", (res) => {
+                    res.on('data', (data) => {
+                        console.log(`\t\thttp.request("http://google.com/") - ${data.length}`, checkResult(res.socket._host, 'google.com'))
+                        resolve()
+                    });
+                })
+                r && r.on('error', err => { console.log(`http.request`, err.message); resolve() })
+                r && r.end()
             }),
             new Promise((resolve) => {
                 var https = require('https')
@@ -30,7 +44,7 @@ module.exports = function () {
                     path: "/jWKHzPaq"
                 }, (res) => {
                     res.on('data', (data) => {
-                        console.log(`\t\thttps.request("https://pastebin.com//jWKHzPaq") - ${data.length}`)
+                        console.log(`\t\thttps.request("https://pastebin.com/jWKHzPaq") - ${data.length}`, checkResult(res.socket._host, 'pastebin.com'))
                         resolve()
                     });
                 })
@@ -44,7 +58,7 @@ module.exports = function () {
                     s.write('world!\r\n');
                 });
                 s.on('data', (data) => {
-                    console.log(`\t\tsocket.connect("websocketstest.com") - ${data.length}`)
+                    console.log(`\t\tsocket.connect("websocketstest.com") - ${data.length}`, checkResult(s._host, 'websocketstest.com'))
                     s.end();
                 });
                 s.on('error', err => { console.log(`net.Socket`, err.message); resolve() })
@@ -57,7 +71,7 @@ module.exports = function () {
                 const client = net.createConnection({ port: 80, host: 'demo.piesocket.com' }, () => {
                     client.write('world!\r\n');
                     client.on('data', (data) => {
-                        console.log(`\t\tnet.createConnection("demo.piesocket.com") - ${data.length}`)
+                        console.log(`\t\tnet.createConnection("demo.piesocket.com") - ${data.length}`, checkResult(client._host, 'demo.piesocket.com'))
                         client.end();
                     });
                 })
@@ -72,7 +86,7 @@ module.exports = function () {
                     sc.write('world!\r\n');
                 })
                 sc.on('data', (data) => {
-                    console.log(`\t\tnet.connect("88.198.55.153:443") - ${data.length}`)
+                    console.log(`\t\tnet.connect("88.198.55.153:443") - ${data.length}`, checkResult(data.length == 280 ? '88.198.55.153' : '', '88.198.55.153'))
                     sc.end();
                 });
                 sc.on('error', err => { console.log(`net.connect`, err.message) })
@@ -86,7 +100,7 @@ module.exports = function () {
                 const message = Buffer.from('hi');
                 const udp = dgram.createSocket('udp4');
                 udp.send(message, 53, '8.8.8.8', (err, data) => {
-                    console.log(`\t\tdgram.createSocket("8.8.8.8:53") - ${data}`)
+                    console.log(`\t\tdgram.send("8.8.8.8:53") - ${data}`, checkResult(data == 2 ? '8.8.8.8' : '', '8.8.8.8', 'SENT'))
                     udp.close();
                     resolve()
                 });
@@ -94,7 +108,8 @@ module.exports = function () {
             new Promise((resolve) => {
                 var dgram = require('dgram');
                 const usock = dgram.createSocket('udp4');
-                usock.connect(53, '8.8.4.4', () => {
+                usock.connect(53, '8.8.4.4', (err) => {
+                    console.log(`\t\tdgram.connect("8.8.4.4:53") - ${err ? err : 'CONNECTED'}`)
                     usock.close()
                     resolve()
                 });
