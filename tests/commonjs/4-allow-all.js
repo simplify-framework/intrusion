@@ -1,9 +1,8 @@
-var { Firewall } = require('../../index.js')
-var firewall = new Firewall({
-    allowDomainsOrHostIPs: ['*'],
-    allowSHA256OfCodeModules: ['*'],
-    blockedHashOrHostValues: []
-}, 'TestApp/Firewall', 'dev.null.org')
+var { IDS } = require('../../index.js')
+var firewall = new IDS({
+    network: { allowDomainsOrHostIPs: ['*'], blockDomainsOrHostIPs: ['*'] },
+    host: { allowSHA256OfCodeModules: ['*'], blockSHA256OfCodeModules: ['*'] }
+}, 'TestApp/IDS', 'dev.null.org')
 
 module.exports = function () {
     return new Promise((resolve, reject) => {

@@ -3,6 +3,14 @@
 ![NPM Downloads](https://img.shields.io/npm/dw/simplify-intrusion)
 ![Package Version](https://img.shields.io/github/package-json/v/simplify-framework/intrusion?color=green)
 
+- Host Intrusion Detection and Prevention
+  + Detect modules are loaded by require('module').
+  + Detect modules are compiled by module._compile('code').
+
+- Network Intrusion Detection and Prevention
+  + Detect HTTP/HTTPS/UDP/TCP outbound connection.
+  + Redirect the outbound connection to a honeypot.
+
 ### Setup your AWS environment or IAM Role in your Lambdas with this permission:
 
 This library requires AWS IAM Role to allow publishing the CloudWatch Metrics to a custom namespace:
@@ -21,20 +29,27 @@ Policies:
 ```
 
 The metrics' namespace is set in the constructor at 2nd parameter: 
-- new Firewall({}, '`TestApp/Firewall`' /* Custom Namespace */)
+- new IDS({}, '`TestApp/IDS`' /* Custom Namespace */)
 
-### Use the { Firewall } to detect the intrustion outbound network from your code:
+### Use the { IDS } to detect the intrustion outbound network from your code:
 
-1. Load the library with Firewall configuration:
+1. Load the library with IDS configuration:
 
 ```Javascript
-var { Firewall } = require('simplify-intrusion')
-var nodeFirewall = new Firewall({
-    allowDomainsOrHostIPs: [/* a whitelist of domains or IPs that is allowed to access from your code */],
-    allowSHA256OfCodeModules: [ /* a whitelist of SHA-256('code') that will be embeded by using module._complie() */],
-    blockedHashOrHostValues: [ /* the blacklist of SHA-256('code'), domains or IPs you want to BLOCK them from your code */]
+var { IDS } = require('simplify-intrusion')
+var nodeFirewall = new IDS({
+    network: { allowDomainsOrHostIPs: [
+      /* a whitelist of domains or IPs that is allowed to access from your code */
+    ], blockDomainsOrHostIPs: [
+      /* the blacklist of domains or IPs you want to BLOCK them from your code */
+    ] },
+    host: { allowSHA256OfCodeModules: [
+      /* a whitelist of SHA-256('code') that will be embeded by using module._complie() */
+    ], blockSHA256OfCodeModules: [
+      /* the blacklist of SHA-256('code') that contains the untrusted HASH of modules */
+    ] }
   },
-  'YourApp/Firewall' /* log metrics to your custom CloudWatch NameSpace if the process.env.ALLOW_METRIC_LOGGING=true */,
+  'YourApp/IDS' /* log metrics to your custom CloudWatch NameSpace if the process.env.ALLOW_METRIC_LOGGING=true */,
   'dev.null.org' /* if BLOCKED, reflect the requests to a honeypot server: dev.null.org */)
 ```
 
@@ -74,12 +89,11 @@ somePromiseOrCallbackFunction().then(response => {
 2. Create example.js node application
 
 ```JavaScript
-var { Firewall } = require('simplify-intrusion')
-var nodeFirewall = new Firewall({
-    allowDomainsOrHostIPs: [],
-    allowSHA256OfCodeModules: ["OtbUd5po/kQtu2FweSNa42kOfFYZvlsFuen1xXeOPKs="],
-    blockedHashOrHostValues: []
-}, 'TestApp/Firewall', 'dev.null.org')
+var { IDS } = require('simplify-intrusion')
+var nodeFirewall = new IDS({
+    network: { allowDomainsOrHostIPs: [], blockDomainsOrHostIPs: [] },
+    host: { allowSHA256OfCodeModules: ['OtbUd5po/kQtu2FweSNa42kOfFYZvlsFuen1xXeOPKs='], blockSHA256OfCodeModules: ['*'] }
+}, 'TestApp/IDS', 'dev.null.org')
 
 var path = require('path')
 var https = require('https')
@@ -106,9 +120,7 @@ Expected outcome:
 
 ```bash
 $ node example.js
-╓───────────────────────────────────────────────────────────────╖
-║          Simplify Framework - IDS/IPS Version 0.1.0           ║
-╙───────────────────────────────────────────────────────────────╜
+
   >>>> [Blocked] (function:eval) EXEC - console.log("eval() is not allowed.")
 require-from-string: OK
   >>>> [Warning] (_http_client) GET - http://google.com
