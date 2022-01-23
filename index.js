@@ -329,7 +329,6 @@ class IDS {
             return {}
         }
         const requestURL = args.length > 0 ? args[0] : null
-        args.shift()
         const options = getHttpOptions(...args)
         const requestHost = new URL(requestURL).host
         const resolvedHost = resolveHostAddress(requestHost)
