@@ -13,7 +13,7 @@
     "test-2": "npm run test-commonjs 2-allow-hash",
     "test-3": "npm run test-commonjs 3-allow-host",
     "test-4": "npm run test-commonjs 4-allow-all",
-    "test-lambda": "node -e \"process.env.ORIGIN_LAMBDA_HANDLER=`${require('path').resolve('tests/lambda')}.handler`;require('./reflection').handler(null,null,function(err,data) {console.log(err?err:data)})\"",
+    "test-lambda": "node -e \"process.env.ORIGIN_LAMBDA_HANDLER=`${require('path').resolve('./tests/lambda')}.handler`;require('./reflection').handler(null,null,function(err,data) {console.log(err?err:data)})\"",
     "test-commonjs": "node tests/commonjs/index.js"
   },
   "repository": {
