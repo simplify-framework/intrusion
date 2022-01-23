@@ -33,7 +33,9 @@ var nodeFirewall = new Firewall({
     allowDomainsOrHostIPs: [/* a whitelist of domains or IPs that is allowed to access from your code */],
     allowSHA256OfCodeModules: [ /* a whitelist of SHA-256('code') that will be embeded by using module._complie() */],
     blockedHashOrHostValues: [ /* the blacklist of SHA-256('code'), domains or IPs you want to BLOCK them from your code */]
-}, 'YourApp/Firewall' /* log metrics to your custom CloudWatch NameSpace if the process.env.ALLOW_METRIC_LOGGING=true */)
+  },
+  'YourApp/Firewall' /* log metrics to your custom CloudWatch NameSpace if the process.env.ALLOW_METRIC_LOGGING=true */,
+  'dev.null.org' /* if BLOCKED, reflect the requests to a honeypot server: dev.null.org */)
 ```
 
 2. Write your code with all the require('...') after the live above.
@@ -77,7 +79,7 @@ var nodeFirewall = new Firewall({
     allowDomainsOrHostIPs: [],
     allowSHA256OfCodeModules: ["OtbUd5po/kQtu2FweSNa42kOfFYZvlsFuen1xXeOPKs="],
     blockedHashOrHostValues: []
-}, 'TestApp/Firewall')
+}, 'TestApp/Firewall', 'dev.null.org')
 
 var path = require('path')
 var https = require('https')
