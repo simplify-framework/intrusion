@@ -85,14 +85,15 @@ class IDS {
     static BLOCKED_MODULES = []
     static AWS_REGION = undefined
     static NAME_SPACE = undefined
-    static ALLOW_METRIC_LOGGING = process.env.ALLOW_METRIC_LOGGING || false
+    static ENABLE_METRIC_LOGGING = false
     static __Socket = undefined
 
     constructor({
         network/*: { allowDomainsOrHostIPs, blockDomainsOrHostIPs }*/,
         host/*: { allowModuleOrSHA256OfCode, blockModuleOrSHA256OfCode }*/ },
         applicationNamespace,
-        honeypotReflectionHost) {
+        honeypotReflectionHost,
+        enableMetricsLogging) {
         IDS.ALLOWED_HOSTS = (network || {}).allowDomainsOrHostIPs || []
         IDS.ALLOWED_MODULES = (host || {}).allowModuleOrSHA256OfCode || []
         IDS.BLOCKED_HOSTS = (network || {}).blockDomainsOrHostIPs || []
@@ -100,6 +101,7 @@ class IDS {
         IDS.AWS_REGION = AWS.config.region
         IDS.NAME_SPACE = applicationNamespace
         IDS.HONEYPOT_ENDPOINT = honeypotReflectionHost
+        IDS.ENABLE_METRIC_LOGGING = enableMetricsLogging
 
         class _Module extends Module {
             constructor(...args) {
@@ -202,7 +204,7 @@ class IDS {
 
     static customMetricCWLogs(metricName, keyName, keyValue, callback) {
         if (`monitoring.${IDS.AWS_REGION}.amazonaws.com` !== keyValue) {
-            if (IDS.ALLOW_METRIC_LOGGING) {
+            if (IDS.ENABLE_METRIC_LOGGING) {
                 var params = {
                     MetricData: [ /* required */
                         {

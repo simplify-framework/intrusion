@@ -13,11 +13,15 @@
   + Block or allow by domain names or IP addresses.
   + Redirect the outbound connection to a honeypot.
 
+````diff
+WARNING: This library does not handle the require('net').Socket.connect() function.
+````
+
 ### Setup your AWS environment or IAM Role in your Lambdas with this permission:
 
 This library requires AWS IAM Role to allow publishing the CloudWatch Metrics to a custom namespace:
 
-**The process.env.`ALLOW_METRIC_LOGGING`=true will turn ON or OFF this metric logging.**
+**The process.env.`IDS_ENABLE_METRIC_LOGGING`=true will turn ON or OFF this metric logging.**
 
 ```yaml
 Policies:
@@ -57,7 +61,7 @@ var nodeFirewall = new IDS({
   'dev.null.org' /* if BLOCKED, reflect the requests to a honeypot server: dev.null.org */)
 ```
 
-2. Write your code with all the require('...') after the live above.
+2. Write your code with all the require('...') after the line above.
 
 ```Javascript
 var http = require('http')
@@ -66,7 +70,7 @@ var { ClientRequest } = require('_http_client_')
 var module = require('module')
 
 /*an example of your lambda code*/
-module.exports = function(event, context, callback) {
+module.exports.handler = function(event, context, callback) {
   //DO SOMETHING LIKE CALL EXTERNAL APIS
   var r = https.request("https://google.com/api/...", (res) => {
       console.log(res)
