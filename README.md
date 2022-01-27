@@ -43,7 +43,7 @@ The metrics' namespace is set in the constructor at 2nd parameter:
 - simplify-intrusion --bucket YOUR_BUCKET_NAME --layer-name YOUR_IDS_LAYER_NAME `make`
 - simplify-intrusion --function-name YOUR_TARGET_FUNCTION `attach`
 
-### NodeJS - Use the { IDS } module to detect the intrustion outbound network from your code:
+### SDK/Library - Use the { IDS } module to detect the intrustion outbound network from your code:
 
 1. Load the library with IDS configuration:
 
@@ -96,7 +96,7 @@ somePromiseOrCallbackFunction().then(response => {
 })
 ```
 
-### Running an example of intrusion code.
+### EXAMPLE - Running an example of intrusion code.
 
 1. Install Simplify Framework - Intrustion library
 - `npm install simplify-intrustion`
