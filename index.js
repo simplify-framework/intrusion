@@ -1,7 +1,8 @@
+#!/usr/bin/env node
+'use strict';
 process.env.AWS_SDK_LOAD_CONFIG = true
 var requireHook = require("./require-hook")
 var path = require('path')
-const dns = require('dns')
 var crypto = require('crypto')
 var AWS = require('aws-sdk')
 var http = require('./node-libs/http')
@@ -12,14 +13,30 @@ var { Module } = require('module')
 var { Socket } = require('net')
 var dgram = require('dgram')
 
-global.eval = function (...args) {
-    console.log('  >>>>', `[${RED}Blocked${RESET}] (function:eval) EVAL - ${args}`)
+var GREEN = '\x1b[32m'
+var RED = '\x1b[31m'
+var YELLOW = '\x1b[33m'
+var VIOLET = '\x1b[35m'
+var RESET = '\x1b[0m'
+
+if (require.main !== module) {
+    GREEN = RED = YELLOW = VIOLET = RESET = ''
 }
-const GREEN = '\x1b[32m'
-const RED = '\x1b[31m'
-const YELLOW = '\x1b[33m'
-const VIOLET = '\x1b[35m'
-const RESET = '\x1b[0m'
+
+global.eval = function (...args) {
+    return function () { console.log('  >>>>', `[${RED}Blocked${RESET}] (function:eval) EVAL`, args) }
+}
+
+Array.range = function (n) {
+    return Array.apply(null, Array(n)).map((x, i) => i)
+}
+
+Object.defineProperty(Array.prototype, 'chunk', {
+    value: function (n) {
+        return Array.range(Math.ceil(this.length / n)).map((x, i) => this.slice(i * n, i * n + n));
+
+    }
+})
 
 function resolveHostAddress(ipaddress) {
     return (ipaddress)
@@ -76,8 +93,6 @@ const showBoxBanner = function () {
     console.log("╙───────────────────────────────────────────────────────────────╜")
 }
 
-showBoxBanner()
-
 class IDS {
     static ALLOWED_HOSTS = []
     static ALLOWED_MODULES = []
@@ -102,6 +117,7 @@ class IDS {
         IDS.NAME_SPACE = applicationNamespace
         IDS.HONEYPOT_ENDPOINT = honeypotReflectionHost
         IDS.ENABLE_METRIC_LOGGING = enableMetricsLogging
+        IDS.CW_METRIC_DATA = []
 
         class _Module extends Module {
             constructor(...args) {
@@ -180,7 +196,9 @@ class IDS {
                 return {}
             }
         })
-        requireHook.attach(path.resolve())
+        if (requireHook.attach(path.resolve())) {
+            IDS.CW_METRIC_DATA = []
+        }
     }
 
     static verifyValueInCheckList(checkValue, checkList, exactEquals) {
@@ -202,93 +220,98 @@ class IDS {
         return args;
     }
 
-    static customMetricCWLogs(metricName, keyName, keyValue, callback) {
-        if (`monitoring.${IDS.AWS_REGION}.amazonaws.com` !== keyValue) {
-            if (IDS.ENABLE_METRIC_LOGGING) {
-                var params = {
-                    MetricData: [ /* required */
-                        {
-                            MetricName: metricName, /* required */
-                            Dimensions: [{ Name: keyName, Value: keyValue }],
-                            StorageResolution: 60,
-                            Timestamp: new Date().toISOString(),
-                            Unit: 'Count',
-                            Value: 1
-                        }
-                    ],
-                    Namespace: IDS.NAME_SPACE || 'NodeJS/FireWall' /* required */
-                };
-                var cloudwatch = new AWS.CloudWatch({ apiVersion: '2010-08-01', region: IDS.AWS_REGION });
-                cloudwatch.putMetricData(params, (err, data) => {
-                    callback && callback()
-                    if (err) {
-                        console.log('\t\t  ', `connect = monitoring.${IDS.AWS_REGION}.amazonaws.com`)
-                        console.log('\t\t  ', `logging = AWS/CloudWatch: { Action: [ "cloudwatch:PutMetricData" ] }`)
-                        console.log('\t\t  ', `message = ${err.message}`)
-                    }
-                });
-            } else {
-                callback && callback()
-            }
+    static storeMetricCWLogs(metricName, keyName, keyValue) {
+        if (IDS.ENABLE_METRIC_LOGGING && `monitoring.${IDS.AWS_REGION}.amazonaws.com` !== keyValue) {
+            IDS.CW_METRIC_DATA.push(
+                {
+                    MetricName: metricName, /* required */
+                    Dimensions: [{ Name: keyName, Value: keyValue }],
+                    StorageResolution: 60,
+                    Timestamp: new Date().toISOString(),
+                    Unit: 'Count',
+                    Value: 1
+                })
+        }
+    }
+
+    static sendMetricCWLogs(callback) {
+        if (IDS.ENABLE_METRIC_LOGGING) {
+            Promise.all(IDS.CW_METRIC_DATA.chunk(20).map(metricData => {
+                return new Promise((resolve, reject) => {
+                    var params = {
+                        MetricData: metricData,
+                        Namespace: IDS.NAME_SPACE || 'NodeJS/FireWall' /* required */
+                    };
+                    var cloudwatch = new AWS.CloudWatch({ apiVersion: '2010-08-01', region: IDS.AWS_REGION });
+                    cloudwatch.putMetricData(params, (err, data) => {
+                        err ? reject(err) : resolve(data)
+                    });
+                })
+            })).catch(err => {
+                const errs = Array.isArray(err) ? err : [err]
+                errs.map(err => {
+                    console.log('\t\t  ', `connect = monitoring.${IDS.AWS_REGION}.amazonaws.com`)
+                    console.log('\t\t  ', `logging = AWS/CloudWatch: { Action: [ "cloudwatch:PutMetricData" ] }`)
+                    console.log('\t\t  ', `message = ${err.message}`)
+                })
+                callback && callback(errs)
+            }).then((results) => {
+                console.log('\t\t *', `AWS CloudWatch has logged ${IDS.CW_METRIC_DATA.length} metrics to ${IDS.NAME_SPACE || 'NodeJS/FireWall'}.`)
+                IDS.CW_METRIC_DATA = new Array()
+                callback && callback(null, {})
+            })
         } else {
-            callback && callback()
+            callback && callback(null, {})
         }
     }
 
     static hookHttp2Connect(...args) {
         const resolvedHost = args.length > 0 ? args[0] : undefined
-        IDS.customMetricCWLogs("Blocked", "http2.connect()", resolvedHost, () => {
-            console.log('  >>>>', `[${RED}Blocked${RESET}] (http2:connect) OPEN - ${resolvedHost} | ${VIOLET}Unsupported${RESET}`)
-        })
+        IDS.storeMetricCWLogs("Blocked", "http2.connect()", resolvedHost)
+        console.log('  >>>>', `[${RED}Blocked${RESET}] (http2:connect) OPEN - ${resolvedHost} | ${VIOLET}Unsupported${RESET}`)
         return undefined
     }
 
     static hookHttpRequest(...args) {
         const options = typeof args[0] === 'string' ? new URL(args[0]) : args[0]
-        const protocol = `${options.protocol || (options.agent || {}).protocol || `${(options.port || 443) === 443 ? 'https:' : 'http:'}`}`
+        const protocol = `${options.protocol || (options.agent || {}).protocol || `${options.port === 80 ? 'http:' : options.socketPath ? 'file:' : 'https:'}`}`
         const moduleName = protocol.replace(':', '')
-        const resolvedHost = resolveHostAddress(options.host)
+        const resolvedHost = resolveHostAddress(options.host || options.socketPath)
         const argURL = `${protocol}//${resolvedHost}${(options.search ? options.pathname + options.search : options.pathname) || options.path || ''}`
         if (IDS.verifyValueInCheckList(resolvedHost, IDS.ALLOWED_HOSTS)) {
-            IDS.customMetricCWLogs("Allowed", "https.request()", resolvedHost, (err, data) => {
-                console.log('  >>>>', `[${GREEN}Allowed${RESET}] (${moduleName}:request) ${options.method || 'GET'} - ${argURL}`)
-            })
+            IDS.storeMetricCWLogs("Allowed", "https.request()", resolvedHost)
+            console.log('  >>>>', `[${GREEN}Allowed${RESET}] (${moduleName}:request) ${options.method || 'GET'} - ${argURL}`)
             return (protocol === 'https:' ? https.request(...args) : http.request(...args))
         } else {
             if (IDS.verifyValueInCheckList(resolvedHost, IDS.BLOCKED_HOSTS)) {
-                IDS.customMetricCWLogs("Blocked", "https.request()", resolvedHost, (err, data) => {
-                    console.log('  >>>>', `[${RED}Blocked${RESET}] (${moduleName}:request) ${options.method || 'GET'} - ${argURL}`)
-                })
+                IDS.storeMetricCWLogs("Blocked", "https.request()", resolvedHost)
+                console.log('  >>>>', `[${RED}Blocked${RESET}] (${moduleName}:request) ${options.method || 'GET'} - ${argURL}`)
                 return (protocol === 'https:' ? https.request(...IDS.redirectHTTPToHoneyPot(args)) : http.request(...IDS.redirectHTTPToHoneyPot(args)))
             }
-            IDS.customMetricCWLogs("Warning", "https.request()", resolvedHost, (err, data) => {
-                console.log('  >>>>', `[${YELLOW}Warning${RESET}] (${moduleName}:request) ${options.method || 'GET'} - ${argURL}`)
-            })
+            IDS.storeMetricCWLogs("Warning", "https.request()", resolvedHost)
+            console.log('  >>>>', `[${YELLOW}Warning${RESET}] (${moduleName}:request) ${options.method || 'GET'} - ${argURL}`)
             return (protocol === 'https:' ? https.request(...args) : http.request(...args))
         }
     }
 
     static hookHttpGet(...args) {
         const options = typeof args[0] === 'string' ? new URL(args[0]) : typeof args[1] === 'function' ? {} : args[1]
-        const protocol = `${options.protocol || (options.agent || {}).protocol || `${(options.port || 443) ? 'https:' : 'http:'}`}`
+        const protocol = `${options.protocol || (options.agent || {}).protocol || `${options.port === 80 ? 'http:' : options.socketPath ? 'file:' : 'https:'}`}`
         const moduleName = protocol.replace(':', '')
-        const resolvedHost = resolveHostAddress(options.host)
+        const resolvedHost = resolveHostAddress(options.host || options.socketPath)
         const argURL = `${protocol}//${resolvedHost}${(options.search ? options.pathname + options.search : options.pathname) || options.path || ''}`
         if (IDS.verifyValueInCheckList(resolvedHost, IDS.ALLOWED_HOSTS)) {
-            IDS.customMetricCWLogs("Allowed", "https.get()", resolvedHost, (err, data) => {
-                console.log('  >>>>', `[${GREEN}Allowed${RESET}] (${moduleName}:get) GET - ${argURL}`)
-            })
+            IDS.storeMetricCWLogs("Allowed", "https.get()", resolvedHost)
+            console.log('  >>>>', `[${GREEN}Allowed${RESET}] (${moduleName}:get) GET - ${argURL}`)
             return (protocol === 'https:' ? https.get(...args) : http.get(...args))
         } else {
             if (IDS.verifyValueInCheckList(resolvedHost, IDS.BLOCKED_HOSTS)) {
-                IDS.customMetricCWLogs("Blocked", "https.get()", resolvedHost, (err, data) => {
-                    console.log('  >>>>', `[${RED}Blocked${RESET}] (${moduleName}:get) GET - ${argURL}`)
-                })
+                IDS.storeMetricCWLogs("Blocked", "https.get()", resolvedHost)
+                console.log('  >>>>', `[${RED}Blocked${RESET}] (${moduleName}:get) GET - ${argURL}`)
                 return (protocol === 'https:' ? https.get(...IDS.redirectHTTPToHoneyPot(args)) : http.get(...IDS.redirectHTTPToHoneyPot(args)))
             }
-            IDS.customMetricCWLogs("Warning", "https.get()", resolvedHost, (err, data) => {
-                console.log('  >>>>', `[${YELLOW}Warning${RESET}] (${moduleName}:get) GET - ${argURL}`)
-            })
+            IDS.storeMetricCWLogs("Warning", "https.get()", resolvedHost)
+            console.log('  >>>>', `[${YELLOW}Warning${RESET}] (${moduleName}:get) GET - ${argURL}`)
             return (protocol === 'https:' ? https.get(...args) : http.get(...args))
         }
     }
@@ -305,20 +328,17 @@ class IDS {
 
     static hookNodeModule(moduleValue, moduleName, moduleMode, moduleType) {
         if (IDS.verifyValueInCheckList(moduleValue, IDS.ALLOWED_MODULES, false)) {
-            IDS.customMetricCWLogs("Allowed", `module.${moduleMode}()`, moduleValue, (err, data) => {
-                console.log('  >>>>', `[${GREEN}Allowed${RESET}] (module:${moduleMode}) ${moduleName ? moduleName : moduleMode} - ${moduleValue} ${moduleType ? 'type=' + moduleType : ''}`)
-            })
+            IDS.storeMetricCWLogs("Allowed", `module.${moduleMode}()`, moduleValue)
+            console.log('  >>>>', `[${GREEN}Allowed${RESET}] (module:${moduleMode}) ${moduleName ? moduleName : moduleMode} - ${moduleValue} ${moduleType ? 'type=' + moduleType : ''}`)
             return true
         } else {
             if (IDS.verifyValueInCheckList(moduleValue, IDS.BLOCKED_MODULES, false)) {
-                IDS.customMetricCWLogs("Blocked", `module.${moduleMode}()`, moduleValue, (err, data) => {
-                    console.log('  >>>>', `[${RED}Blocked${RESET}] (module:${moduleMode}) ${moduleName ? moduleName : moduleMode} - ${moduleValue} ${moduleType ? 'type=' + moduleType : ''}`)
-                })
+                IDS.storeMetricCWLogs("Blocked", `module.${moduleMode}()`, moduleValue)
+                console.log('  >>>>', `[${RED}Blocked${RESET}] (module:${moduleMode}) ${moduleName ? moduleName : moduleMode} - ${moduleValue} ${moduleType ? 'type=' + moduleType : ''}`)
                 return false
             }
-            IDS.customMetricCWLogs("Warning", `module.${moduleMode}()`, moduleValue, (err, data) => {
-                console.log('  >>>>', `[${YELLOW}Warning${RESET}] (module:${moduleMode}) ${moduleName ? moduleName : moduleMode} - ${moduleValue} ${moduleType ? 'type=' + moduleType : ''}`)
-            })
+            IDS.storeMetricCWLogs("Warning", `module.${moduleMode}()`, moduleValue)
+            console.log('  >>>>', `[${YELLOW}Warning${RESET}] (module:${moduleMode}) ${moduleName ? moduleName : moduleMode} - ${moduleValue} ${moduleType ? 'type=' + moduleType : ''}`)
             return true
         }
     }
@@ -335,20 +355,17 @@ class IDS {
         const requestHost = new URL(requestURL).host
         const resolvedHost = resolveHostAddress(requestHost)
         if (IDS.verifyValueInCheckList(resolvedHost, IDS.ALLOWED_HOSTS)) {
-            IDS.customMetricCWLogs("Allowed", "_http_client()", resolvedHost, (err, data) => {
-                console.log('  >>>>', `[${GREEN}Allowed${RESET}] (_http_client) ${options.method || 'GET'} - ${requestURL}`)
-            })
+            IDS.storeMetricCWLogs("Allowed", "_http_client()", resolvedHost)
+            console.log('  >>>>', `[${GREEN}Allowed${RESET}] (_http_client) ${options.method || 'GET'} - ${requestURL}`)
             return args
         } else {
             if (IDS.verifyValueInCheckList(resolvedHost, IDS.BLOCKED_HOSTS)) {
-                IDS.customMetricCWLogs("Blocked", "_http_client()", resolvedHost, (err, data) => {
-                    console.log('  >>>>', `[${RED}Blocked${RESET}] (_http_client) ${options.method || 'GET'} - ${requestURL}`)
-                })
+                IDS.storeMetricCWLogs("Blocked", "_http_client()", resolvedHost)
+                console.log('  >>>>', `[${RED}Blocked${RESET}] (_http_client) ${options.method || 'GET'} - ${requestURL}`)
                 return IDS.redirectHTTPToHoneyPot(args)
             }
-            IDS.customMetricCWLogs("Warning", "_http_client()", resolvedHost, (err, data) => {
-                console.log('  >>>>', `[${YELLOW}Warning${RESET}] (_http_client) ${options.method || 'GET'} - ${requestURL}`)
-            })
+            IDS.storeMetricCWLogs("Warning", "_http_client()", resolvedHost)
+            console.log('  >>>>', `[${YELLOW}Warning${RESET}] (_http_client) ${options.method || 'GET'} - ${requestURL}`)
             return args
         }
     }
@@ -367,20 +384,17 @@ class IDS {
         const resolvedHost = resolveHostAddress(options.host)
         const argURL = `socket://${resolvedHost}:${options.port}`
         if (IDS.verifyValueInCheckList(resolvedHost, IDS.ALLOWED_HOSTS)) {
-            IDS.customMetricCWLogs("Allowed", "net.connect()", resolvedHost, (err, data) => {
-                console.log('  >>>>', `[${GREEN}Allowed${RESET}] (net:connect) OPEN - ${argURL}`)
-            })
+            IDS.storeMetricCWLogs("Allowed", "net.connect()", resolvedHost)
+            console.log('  >>>>', `[${GREEN}Allowed${RESET}] (net:connect) OPEN - ${argURL}`)
             return connect(...args)
         } else {
             if (IDS.verifyValueInCheckList(resolvedHost, IDS.BLOCKED_HOSTS)) {
-                IDS.customMetricCWLogs("Blocked", "net.connect()", resolvedHost, (err, data) => {
-                    console.log('  >>>>', `[${RED}Blocked${RESET}] (net:connect) OPEN - ${argURL}`)
-                })
+                IDS.storeMetricCWLogs("Blocked", "net.connect()", resolvedHost)
+                console.log('  >>>>', `[${RED}Blocked${RESET}] (net:connect) OPEN - ${argURL}`)
                 return connect(...IDS.redirectHTTPToHoneyPot(args))
             }
-            IDS.customMetricCWLogs("Warning", "net.connect()", resolvedHost, (err, data) => {
-                console.log('  >>>>', `[${YELLOW}Warning${RESET}] (net:connect) OPEN - ${argURL}`)
-            })
+            IDS.storeMetricCWLogs("Warning", "net.connect()", resolvedHost)
+            console.log('  >>>>', `[${YELLOW}Warning${RESET}] (net:connect) OPEN - ${argURL}`)
             return connect(...args)
         }
     }
@@ -400,20 +414,17 @@ class IDS {
         const resolvedHost = resolveHostAddress(requestHost)
 
         if (IDS.verifyValueInCheckList(resolvedHost, IDS.ALLOWED_HOSTS)) {
-            IDS.customMetricCWLogs("Allowed", "socket.connect()", resolvedHost, (err, data) => {
-                console.log('  >>>>', `[${GREEN}Allowed${RESET}] (${socketType}:socket) OPEN - socket://${resolvedHost}:${requestPort}`)
-            })
+            IDS.storeMetricCWLogs("Allowed", "socket.connect()", resolvedHost)
+            console.log('  >>>>', `[${GREEN}Allowed${RESET}] (${socketType}:socket) OPEN - socket://${resolvedHost}:${requestPort}`)
             return args
         } else {
             if (IDS.verifyValueInCheckList(resolvedHost, IDS.BLOCKED_HOSTS)) {
-                IDS.customMetricCWLogs("Blocked", "socket.connect()", resolvedHost, (err, data) => {
-                    console.log('  >>>>', `[${RED}Blocked${RESET}] (${socketType}:socket) OPEN - socket://${resolvedHost}:${requestPort}`)
-                })
+                IDS.storeMetricCWLogs("Blocked", "socket.connect()", resolvedHost)
+                console.log('  >>>>', `[${RED}Blocked${RESET}] (${socketType}:socket) OPEN - socket://${resolvedHost}:${requestPort}`)
                 return IDS.redirectSOCKToHoneyPot(args)
             }
-            IDS.customMetricCWLogs("Warning", "socket.connect()", resolvedHost, (err, data) => {
-                console.log('  >>>>', `[${YELLOW}Warning${RESET}] (${socketType}:socket) OPEN - socket://${resolvedHost}:${requestPort}`)
-            })
+            IDS.storeMetricCWLogs("Warning", "socket.connect()", resolvedHost)
+            console.log('  >>>>', `[${YELLOW}Warning${RESET}] (${socketType}:socket) OPEN - socket://${resolvedHost}:${requestPort}`)
             return args
         }
     }
@@ -423,29 +434,31 @@ class IDS {
         const requestHost = args.length > 2 ? args[2] : 'localhost'
         const resolvedHost = resolveHostAddress(requestHost)
         if (IDS.verifyValueInCheckList(resolvedHost, IDS.ALLOWED_HOSTS)) {
-            IDS.customMetricCWLogs("Allowed", "socket.send()", resolvedHost, (err, data) => {
-                console.log('  >>>>', `[${GREEN}Allowed${RESET}] (udp:socket) SEND - socket://${resolvedHost}:${requestPort}`)
-            })
+            IDS.storeMetricCWLogs("Allowed", "socket.send()", resolvedHost)
+            console.log('  >>>>', `[${GREEN}Allowed${RESET}] (udp:socket) SEND - socket://${resolvedHost}:${requestPort}`)
             return args
         } else {
             if (IDS.verifyValueInCheckList(resolvedHost, IDS.BLOCKED_HOSTS)) {
-                IDS.customMetricCWLogs("Blocked", "socket.send()", resolvedHost, (err, data) => {
-                    console.log('  >>>>', `[${RED}Blocked${RESET}] (udp:socket) SEND - socket://${resolvedHost}:${requestPort}`)
-                })
+                IDS.storeMetricCWLogs("Blocked", "socket.send()", resolvedHost)
+                console.log('  >>>>', `[${RED}Blocked${RESET}] (udp:socket) SEND - socket://${resolvedHost}:${requestPort}`)
                 const message = args.shift()
                 return [message, ...IDS.redirectSOCKToHoneyPot(args)]
             }
-            IDS.customMetricCWLogs("Warning", "socket.send()", resolvedHost, (err, data) => {
-                console.log('  >>>>', `[${YELLOW}Warning${RESET}] (udp:socket) SEND - socket://${resolvedHost}:${requestPort}`)
-            })
+            IDS.storeMetricCWLogs("Warning", "socket.send()", resolvedHost)
+            console.log('  >>>>', `[${YELLOW}Warning${RESET}] (udp:socket) SEND - socket://${resolvedHost}:${requestPort}`)
             return args
         }
     }
 
-    detach() {
+    detach(callback) {
         requireHook.detach()
-        return true
+        IDS.sendMetricCWLogs(callback)
     }
 }
 
 module.exports = { IDS }
+
+if (require.main === module) {
+    showBoxBanner()
+    require('./cli.js')
+}

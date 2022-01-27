@@ -1,5 +1,6 @@
 !README.md
 !.gitignore
 !.github
-.simplify-pipeline
 node_modules/
+dist/
+.simplify

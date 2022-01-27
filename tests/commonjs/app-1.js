@@ -1,8 +1,15 @@
+const { runInContext } = require('lodash')
+var { IDS } = require('../../index.js')
+var ids = new IDS({
+    network: { allowDomainsOrHostIPs: [], blockDomainsOrHostIPs: [] },
+    host: { allowModuleOrSHA256OfCode: [], blockModuleOrSHA256OfCode: [] }
+}, 'TestApp/IDS', 'dev.null.org', true)
 
 function checkResult(host, value, defaultValue) {
     return defaultValue ? defaultValue : host == null ? 'UNKNOWN' : host == value ? 'RECEIVED' : 'BLOCK'
 }
-module.exports = function () {
+
+function run() {
     return new Promise((resolve) => {
         Promise.all([
             new Promise((resolve) => {
@@ -131,4 +138,11 @@ module.exports = function () {
             })
         ]).then(() => resolve())
     })
+}
+module.exports = function () {
+    return run()
+}
+
+if (require.main === module) {
+    run().then(()=> ids.detach(()=>{ console.log("\t * IDS DETACHED OK")}))
 }

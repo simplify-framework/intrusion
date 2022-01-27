@@ -57,8 +57,9 @@ var nodeFirewall = new IDS({
       /* example: ['QsPV5N10sTZExAjkbZuQn5yEe0Jkpd4rHRnSxH9dF7Y=', 'buffer:4.9.2', 'request:2.88.'] */
     ] }
   },
-  'YourApp/IDS' /* log metrics to your custom CloudWatch NameSpace if the process.env.ALLOW_METRIC_LOGGING=true */,
-  'dev.null.org' /* if BLOCKED, reflect the requests to a honeypot server: dev.null.org */)
+  'YourApp/IDS' /* log metrics to your custom CloudWatch NameSpace if the CloudWatch Metrics is enabled */,
+  'dev.null.org' /* if BLOCKED, reflect the requests to a honeypot server: dev.null.org */,
+  false /* true = set the CloudWatch Metrics is enabled */)
 ```
 
 2. Write your code with all the require('...') after the line above.
@@ -135,3 +136,8 @@ require-from-string: OK
   >>>> [Allowed] (module:compile) Test - OtbUd5po/kQtu2FweSNa42kOfFYZvlsFuen1xXeOPKs=
   >>>> [Warning] (https:request) GET - https://google.com/
 ```
+
+### AWS/Lambda - Make a build then attach to a Lambda function by using command line
+
+$ simplify-intrusion --region us-east-1 --bucket YOUR_BUCKET_NAME --layer-name YOUR_IDS_LAYER_NAME make
+$ simplify-intrusion --region us-east-1 --function-name YOUR_TARGET_FUNCTION attach

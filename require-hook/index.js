@@ -7,11 +7,11 @@
 console.require_hook = {};
 
 console.require_hook.log = function() {
-  console.log.apply(this, ["\033[1;34m[require-hook]\033[0m"].concat(Array.prototype.slice.call(arguments, 0)));
+  console.log.apply(this, ["[require-hook]"].concat(Array.prototype.slice.call(arguments, 0)));
 };
 
 console.require_hook.warn = function() {
-  console.warn.apply(this, ["\033[1;31m[require-hook]\033[0m"].concat(Array.prototype.slice.call(arguments, 0)));
+  console.warn.apply(this, ["[require-hook]"].concat(Array.prototype.slice.call(arguments, 0)));
 };
 
 module.exports = require("./lib/requireHook.js");

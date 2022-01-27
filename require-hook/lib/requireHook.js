@@ -45,6 +45,11 @@ function getElementId() {
   return this.absPath ? this.absPath : this.require;
 }
 
+function getModulePath(dir, library, absPath) {
+  const examinePath = absPath ? path.join(dir, `${library}`) : path.resolve(dir, `${library}`)
+  return fs.existsSync(examinePath) ? examinePath : undefined
+}
+
 Object.defineProperty(global, '__callerFile', {
   get: function () {
     return process.argv[1]
@@ -65,15 +70,24 @@ var lib = {
       return console.require_hook.log("explicit skip on require", library);
     }
     var e = lib.process(library);
-    e.path = path.resolve('node_modules', `${library}`)
-    e.caller = __callerFile
-    var packageFile = path.resolve(e.path, 'package.json')
-    if (fs.existsSync(packageFile)) {
-      e.version = JSON.parse(fs.readFileSync(packageFile)).version
-    }
     var result = lib.old_reference.apply(this, arguments);
-    if (lib.event_require) {
-      result = lib.event_require(result, e);
+    if (e) {
+      const nodeMajorVersion = process.versions.node.split('.')[0]
+      e.path = getModulePath('', library) ||
+        getModulePath('node_modules', `${library}`) ||
+        getModulePath('/var/runtime/node_modules', `${library}`) ||
+        getModulePath('/opt/nodejs/node_modules', `${library}`) ||
+        getModulePath(`/opt/nodejs/node${nodeMajorVersion}/node_modules`, `${library}`)
+      e.caller = __callerFile
+      if (e.path) {
+        var packageFile = path.join(e.path, 'package.json')
+        if (fs.existsSync(packageFile)) {
+          e.version = JSON.parse(fs.readFileSync(packageFile)).version
+        }
+      }
+      if (lib.event_require) {
+        result = lib.event_require(result, e);
+      }
     }
     return result;
   },
@@ -192,7 +206,7 @@ module.exports = {
   },
   attach: function (projectPath) {
     if (lib.old_reference) {
-      throw new Error("already attached");
+      return false
     }
     lib.reset();
     lib.projectPath = projectPath;
@@ -200,13 +214,15 @@ module.exports = {
     assert(lib.old_reference);
     Module.prototype.require = lib.require;
     helper.copyProperties(lib.old_reference, lib.require);
+    return true
   },
   detach: function () {
-    if (!lib.old_reference) {
-      throw new Error("not attached");
+    if (lib.old_reference) {
+      Module.prototype.require = lib.old_reference;
+      lib.old_reference = null;
+      return true
     }
-    Module.prototype.require = lib.old_reference;
-    lib.old_reference = null;
+    return false
   },
   setEvent: function (event) {
     lib.event_require = event;
