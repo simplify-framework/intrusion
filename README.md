@@ -37,7 +37,13 @@ Policies:
 The metrics' namespace is set in the constructor at 2nd parameter: 
 - new IDS({}, '`TestApp/IDS`' /* Custom Namespace */)
 
-### Use the { IDS } to detect the intrustion outbound network from your code:
+
+### AWS/Lambda - Make a build then attach to a Lambda function by using command line
+
+- simplify-intrusion --bucket YOUR_BUCKET_NAME --layer-name YOUR_IDS_LAYER_NAME `make`
+- simplify-intrusion --function-name YOUR_TARGET_FUNCTION `attach`
+
+### NodeJS - Use the { IDS } module to detect the intrustion outbound network from your code:
 
 1. Load the library with IDS configuration:
 
@@ -136,8 +142,3 @@ require-from-string: OK
   >>>> [Allowed] (module:compile) Test - OtbUd5po/kQtu2FweSNa42kOfFYZvlsFuen1xXeOPKs=
   >>>> [Warning] (https:request) GET - https://google.com/
 ```
-
-### AWS/Lambda - Make a build then attach to a Lambda function by using command line
-
-- simplify-intrusion --bucket YOUR_BUCKET_NAME --layer-name YOUR_IDS_LAYER_NAME `make`
-- simplify-intrusion --function-name YOUR_TARGET_FUNCTION `attach`
