@@ -139,5 +139,5 @@ require-from-string: OK
 
 ### AWS/Lambda - Make a build then attach to a Lambda function by using command line
 
-$ simplify-intrusion --region us-east-1 --bucket YOUR_BUCKET_NAME --layer-name YOUR_IDS_LAYER_NAME make
-$ simplify-intrusion --region us-east-1 --function-name YOUR_TARGET_FUNCTION attach
+- simplify-intrusion --region us-east-1 --bucket YOUR_BUCKET_NAME --layer-name YOUR_IDS_LAYER_NAME `make`
+- simplify-intrusion --region us-east-1 --function-name YOUR_TARGET_FUNCTION `attach`
