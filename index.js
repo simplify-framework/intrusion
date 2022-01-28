@@ -266,7 +266,7 @@ class IDS {
                 })
                 callback && callback(errs)
             }).then((results) => {
-                if (results.length > 0) {
+                if (results && results.length > 0) {
                     const numberOfMetrics = results.length * BATCH_SIZE < IDS.CW_METRIC_DATA.length ? results.length * BATCH_SIZE : IDS.CW_METRIC_DATA.length
                     console.log('\t\t *', `AWS CloudWatch has logged ${numberOfMetrics} metrics to ${IDS.NAME_SPACE || 'NodeJS/FireWall'}.`)
                 }
