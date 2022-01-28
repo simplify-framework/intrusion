@@ -1,6 +1,6 @@
 {
   "name": "simplify-intrusion",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "description": "Simplify Intrusion Detection/Prevention for NodeJS",
   "main": "index.js",
   "bin": {

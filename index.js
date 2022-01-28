@@ -208,14 +208,23 @@ class IDS {
 
     static redirectHTTPToHoneyPot(args) {
         const firstArg = args.length > 0 ? args.shift() : undefined
-        let argsReflex = typeof firstArg === 'string' ? new URL(firstArg) : firstArg
-        argsReflex.host = IDS.HONEYPOT_ENDPOINT
+        let argsReflex = typeof firstArg === 'string' ? new URL(firstArg) : { ...firstArg }
+        if (firstArg.hostname) {
+            delete argsReflex['host']
+            argsReflex.hostname = IDS.HONEYPOT_ENDPOINT
+            console.log('  >>>>', `:redirect ${firstArg.hostname} to ${argsReflex.hostname}`)
+        } else if (firstArg.host) {
+            argsReflex.host = IDS.HONEYPOT_ENDPOINT
+            console.log('  >>>>', `:redirect ${firstArg.host} to ${argsReflex.host}`)
+        }
         return [argsReflex, ...args]
     }
 
     static redirectSOCKToHoneyPot(args) {
         if (args.length > 1) {
+            const lastHost = args[1]
             args[1] = IDS.HONEYPOT_ENDPOINT
+            console.log('  >>>>', `:redirect ${lastHost} to ${args[1]}`)
         }
         return args;
     }
@@ -236,7 +245,8 @@ class IDS {
 
     static sendMetricCWLogs(callback) {
         if (IDS.ENABLE_METRIC_LOGGING) {
-            Promise.all(IDS.CW_METRIC_DATA.chunk(20).map(metricData => {
+            const BATCH_SIZE = 20 /** Max number of Items to put in AWS CW/Metrics */
+            Promise.all(IDS.CW_METRIC_DATA.chunk(BATCH_SIZE).map(metricData => {
                 return new Promise((resolve, reject) => {
                     var params = {
                         MetricData: metricData,
@@ -256,7 +266,10 @@ class IDS {
                 })
                 callback && callback(errs)
             }).then((results) => {
-                console.log('\t\t *', `AWS CloudWatch has logged ${IDS.CW_METRIC_DATA.length} metrics to ${IDS.NAME_SPACE || 'NodeJS/FireWall'}.`)
+                if (results.length > 0) {
+                    const numberOfMetrics = results.length * BATCH_SIZE < IDS.CW_METRIC_DATA.length ? results.length * BATCH_SIZE : IDS.CW_METRIC_DATA.length
+                    console.log('\t\t *', `AWS CloudWatch has logged ${numberOfMetrics} metrics to ${IDS.NAME_SPACE || 'NodeJS/FireWall'}.`)
+                }
                 IDS.CW_METRIC_DATA = new Array()
                 callback && callback(null, {})
             })
@@ -285,7 +298,7 @@ class IDS {
         } else {
             if (IDS.verifyValueInCheckList(resolvedHost, IDS.BLOCKED_HOSTS)) {
                 IDS.storeMetricCWLogs("Blocked", "https.request()", resolvedHost)
-                console.log('  >>>>', `[${RED}Blocked${RESET}] (${moduleName}:request) ${options.method || 'GET'} - ${argURL}`)
+                console.log('  >>>>', `[${RED}${moduleName == 'file' ? 'Ignored' : 'Blocked'}${RESET}] (${moduleName}:request) ${options.method || 'GET'} - ${argURL}`)
                 return (protocol === 'https:' ? https.request(...IDS.redirectHTTPToHoneyPot(args)) : http.request(...IDS.redirectHTTPToHoneyPot(args)))
             }
             IDS.storeMetricCWLogs("Warning", "https.request()", resolvedHost)
