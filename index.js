@@ -209,11 +209,11 @@ class IDS {
     static redirectHTTPToHoneyPot(args) {
         const firstArg = args.length > 0 ? args.shift() : undefined
         let argsReflex = typeof firstArg === 'string' ? new URL(firstArg) : { ...firstArg }
-        if (firstArg.hostname) {
+        if (argsReflex.hostname) {
             delete argsReflex['host']
             argsReflex.hostname = IDS.HONEYPOT_ENDPOINT
             console.log('  >>>>', `:redirect ${firstArg.hostname} to ${argsReflex.hostname}`)
-        } else if (firstArg.host) {
+        } else if (argsReflex.host) {
             argsReflex.host = IDS.HONEYPOT_ENDPOINT
             console.log('  >>>>', `:redirect ${firstArg.host} to ${argsReflex.host}`)
         }
