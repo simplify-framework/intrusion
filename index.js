@@ -126,8 +126,10 @@ class IDS {
             _compile(...args) {
                 if (IDS.hookNodeModuleCompile(...args)) {
                     super._compile(...args)
+                    return true
                 } else {
                     super._compile('module.exports = ()=>{}', __dirname)
+                    return false
                 }
             }
         }
@@ -158,11 +160,15 @@ class IDS {
             }
 
             connect(...args) {
-                return super.connect(...IDS.hookUDPSocketConnect(...args))
+                const newArgs = IDS.hookUDPSocketConnect(...args)
+                super.connect(...newArgs)
+                return newArgs
             }
 
             send(...args) {
-                super.send(...IDS.hookUDPSocketSend(...args))
+                const newArgs = IDS.hookUDPSocketSend(...args)
+                super.send(...newArgs)
+                return newArgs
             }
         }
 
