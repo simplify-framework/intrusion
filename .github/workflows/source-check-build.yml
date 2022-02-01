@@ -10,7 +10,7 @@ on:
     branches: [ master ]
 
 jobs:
-  node16.x:
+  node16_x:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -21,7 +21,7 @@ jobs:
       - run: echo "[default]" > ~/.aws/config
       - run: npm ci
       - run: npm test
-  node14.x:
+  node14_x:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -32,7 +32,7 @@ jobs:
       - run: echo "[default]" > ~/.aws/config
       - run: npm ci
       - run: npm test
-  node12.x:
+  node12_x:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
