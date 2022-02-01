@@ -1,6 +1,7 @@
 !README.md
 !.gitignore
 !.github
-node_modules/
 dist/
+node_modules/
+.nyc_output
 .simplify
