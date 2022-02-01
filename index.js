@@ -217,11 +217,11 @@ class IDS {
         let argsReflex = typeof firstArg === 'string' ? new URL(firstArg) : { ...firstArg }
         if (argsReflex.hostname) {
             delete argsReflex['host']
+            console.log('  >>>>', `:redirect ${argsReflex.hostname} to ${IDS.HONEYPOT_ENDPOINT}`)
             argsReflex.hostname = IDS.HONEYPOT_ENDPOINT
-            console.log('  >>>>', `:redirect ${firstArg.hostname} to ${argsReflex.hostname}`)
         } else if (argsReflex.host) {
+            console.log('  >>>>', `:redirect ${argsReflex.host} to ${IDS.HONEYPOT_ENDPOINT}`)
             argsReflex.host = IDS.HONEYPOT_ENDPOINT
-            console.log('  >>>>', `:redirect ${firstArg.host} to ${argsReflex.host}`)
         }
         return [argsReflex, ...args]
     }
