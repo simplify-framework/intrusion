@@ -4,24 +4,25 @@ module.exports = {
         var stdoutWrite = null
         var ids = null
         function checkHasRuleAllowed(blockValues, allowValues, check) {
-            return (allowValues.find(x => x == '*' || x == check) ? true : false) || blockValues.indexOf(check) == -1
+            return (allowValues.find(x => x == '*' || x == check) ? true : false) ||
+                (blockValues.find(x => x == '*' || x == check) ? false : true)
         }
         describe(`(${type}) Option ${idx + 1} - ${name}`, function () {
             before(function () {
                 ids = new IDS(options, 'TestApp/IDS', 'dev.null.org', true)
                 stdoutWrite = console.log
-                console.log = function (...args) { }
+                console.log = function (...args) { stdoutWrite('\t',...args) }
             })
-            describe(`# Code injection with require('module')`, function () {
+            describe(`# Code injection with module from string`, function () {
                 const hasRuleAllowed = checkHasRuleAllowed(options.host.blockModuleOrSHA256OfCode, options.host.allowModuleOrSHA256OfCode, 'QsPV5N10sTZExAjkbZuQn5yEe0Jkpd4rHRnSxH9dF7Y=')
-                it(`should return ${hasRuleAllowed ? 'OK' : 'an error'} when ${hasRuleAllowed ? 'allowing' : 'blocking'} _complie()`, function (done) {
+                it(`should return ${hasRuleAllowed ? 'OK' : 'an error'} when ${hasRuleAllowed ? 'allowing' : 'blocking'} _compile()`, function (done) {
                     app.testCompile({ code: 'module.exports = function(){}' }).then(() => done(hasRuleAllowed ? null : 'Code is not allowed but has been executed')).catch(err => {
                         done(hasRuleAllowed ? `${err} while this module is allowed.` : null)
                     })
                 });
             });
 
-            describe(`# Module load with require('...')`, function () {
+            describe(`# Module load from file with require('...')`, function () {
                 const moduleName = 'requests' /** fixed - donot change to another module */
                 const hasRuleAllowed = checkHasRuleAllowed(options.host.blockModuleOrSHA256OfCode, options.host.allowModuleOrSHA256OfCode, moduleName)
                 it(`should return ${hasRuleAllowed ? 'OK' : 'an error'} when ${hasRuleAllowed ? 'allowing' : 'blocking'} require('${moduleName}')`, function (done) {
@@ -64,7 +65,8 @@ module.exports = {
             describe(`# Network access using require('net')`, function () {
                 const target = 'websocketstest.com'
                 const hasRuleAllowed = checkHasRuleAllowed(options.network.blockDomainsOrHostIPs, options.network.allowDomainsOrHostIPs, target)
-                it(`should return ${hasRuleAllowed ? 'OK' : 'an error'} when ${hasRuleAllowed ? 'allowing' : 'blocking'} net.Socket().connect('${target}')`, function (done) {
+                const itFn = hasRuleAllowed ? it : it.skip
+                itFn(`should return ${hasRuleAllowed ? 'OK' : 'an error'} when ${hasRuleAllowed ? 'allowing' : 'blocking'} net.Socket().connect('${target}')`, function (done) {
                     app.testNetSocketConnect(443, target).then(() => done(hasRuleAllowed ? null : 'Host is not allowed but has been reachable.')).catch(err => {
                         done(hasRuleAllowed ? `${err} while this host is allowed.` : null)
                     })
