@@ -29,6 +29,9 @@ var argv = require('yargs')
     .string('function-name')
     .alias('f', 'function-name')
     .describe('function-name', 'Function name to attach the IDS/IPS feature')
+    .string('layer-version-arn')
+    .alias('a', 'layer-version-arn')
+    .describe('layer-version-arn', 'Set a layer arn to attach the IDS/IPS feature')
     .demandOption([])
     .demandCommand(1)
     .argv;
@@ -55,16 +58,19 @@ const outputFilePath = path.join(distZippedPath, bucketKey)
 var cmdOPS = (argv._[0] || 'make').toUpperCase()
 if (cmdOPS == 'MAKE') {
     argv.bucket = argv.bucket || (() => { simplify.finishWithErrors(opName, 'Missing --bucket option. Please specify an S3 bucket name to store the IDS/IPS code.') })()
-    argv.layerName = argv.layerName || (() => { simplify.finishWithErrors(opName, 'Missing --layer option. Please specify a Layer name to deploy the IDS/IPS feature.') })()
+    argv.layerName = argv.layerName || (() => { simplify.finishWithErrors(opName, 'Missing --layer-name option. Please specify a Layer name to deploy the IDS/IPS feature.') })()
     createIDSLayer(argv.layerName, argv.profile, argv.region)
-} if (cmdOPS == 'ATTACH') {
-    let metaOutput = getMetaOutputJSON(config)
-    argv.functionName || (() => { simplify.finishWithErrors(opName, 'Missing --function option. Please specify a FunctionName to attach the IDS/IPS feature.') })()
-    updateFunctionLayer(metaOutput.Output.LayerVersionArn, argv.functionName, true)
-} if (cmdOPS == 'DETACH') {
-    let metaOutput = getMetaOutputJSON(config)
-    argv.functionName || (() => { simplify.finishWithErrors(opName, 'Missing --function option. Please specify a FunctionName to attach the IDS/IPS feature.') })()
-    updateFunctionLayer(metaOutput.Output.LayerVersionArn, argv.functionName, false)
+} else if (cmdOPS == 'ATTACH' || cmdOPS == 'DETACH') {
+    let layerVersionArn = argv.layerVersionArn
+    if (!layerVersionArn) {
+        let metaOutput = getMetaOutputJSON(config)
+        layerVersionArn = metaOutput.Output.LayerVersionArn
+        if (!layerVersionArn) {
+            argv.layerVersionArn = argv.layerVersionArn || (() => { simplify.finishWithErrors(opName, 'Missing --layer-version-arn option. Please specify a Layer ARN with version to deploy the IDS/IPS feature.') })()
+        }
+    }
+    argv.functionName || (() => { simplify.finishWithErrors(opName, 'Missing --function-name option. Please specify a FunctionName to attach the IDS/IPS feature.') })()
+    updateFunctionLayer(layerVersionArn, argv.functionName, cmdOPS == 'ATTACH' ? true : false)
 } else {
     simplify.finishWithMessage(opName, 'Command not found. Use one of the following: make | attach | detach')
 }
