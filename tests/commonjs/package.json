@@ -4,14 +4,7 @@
   "description": "Simplify Framework IDS/IPS test",
   "type": "commonjs",
   "scripts": {
-    "test": "npm run test-0 && npm run test-1 && npm run test-2 && npm run test-3 && npm run test-4 && npm run test-5",
-    "test-0": "npm run test-commonjs 0-default",
-    "test-1": "npm run test-commonjs 1-block-all",
-    "test-2": "npm run test-commonjs 2-allow-hash",
-    "test-3": "npm run test-commonjs 3-allow-host",
-    "test-4": "npm run test-commonjs 4-allow-all",
-    "test-5": "npm i && npm run build && npm run test-commonjs 5-webpack",
-    "test-commonjs": "node index.js",
+    "test": "npm i && npm run build && mocha *.test.js",
     "build": "webpack --config webpack.config.js"
   },
   "dependencies": {

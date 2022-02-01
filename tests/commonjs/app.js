@@ -11,7 +11,7 @@ function getOptHostName(options) {
     return typeof optURL == 'string' ? new URL(optURL).host : optURL.host || optURL.hostname
 }
 
-function testEval(options) {
+function testCompile(options) {
     return new Promise((resolve, reject) => {
         eval('console.log("eval() is not allowed.")')
         var Module = require('module')
@@ -25,6 +25,21 @@ function testEval(options) {
         }
     })
 }
+
+function testModuleLoad() {
+    return new Promise((resolve, reject) => {
+        try {
+            Object.keys(require.cache).forEach(function(key) { delete require.cache[key] })
+            var test = require('requests')
+            if (test) {
+                Object.keys(test).length ? resolve() :  reject(`module is blocked.`)
+            } else {
+                reject(`module is not created.`)
+            }
+        } catch( err) { reject(err.message) }
+    })
+}
+
 
 function testHttpClient(...options) {
     return new Promise((resolve, reject) => {
@@ -186,7 +201,8 @@ function testHttp2Connect(...options) {
 }
 
 module.exports = {
-    testEval,
+    testCompile,
+    testModuleLoad,
     testHttpClient,
     testHttpGet,
     testHttpsRequest,

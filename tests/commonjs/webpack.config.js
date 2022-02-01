@@ -13,7 +13,7 @@ fs.readdirSync(path.resolve(__dirname, 'node_modules'))
 
 module.exports = {
     entry: {
-        index: './app-1.js',
+        index: './app.js',
     },
     output: {
         path: path.join(__dirname, 'build'),
