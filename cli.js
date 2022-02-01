@@ -56,11 +56,16 @@ var cmdOPS = (argv._[0] || 'make').toUpperCase()
 if (cmdOPS == 'MAKE') {
     argv.bucket = argv.bucket || (() => { simplify.finishWithErrors(opName, 'Missing --bucket option. Please specify an S3 bucket name to store the IDS/IPS code.') })()
     argv.layerName = argv.layerName || (() => { simplify.finishWithErrors(opName, 'Missing --layer option. Please specify a Layer name to deploy the IDS/IPS feature.') })()
-    pushLayer(argv.layerName, argv.profile, argv.region)
-} else {
+    createIDSLayer(argv.layerName, argv.profile, argv.region)
+} if (cmdOPS == 'ATTACH') {
     let metaOutput = getMetaOutputJSON(config)
     argv.functionName || (() => { simplify.finishWithErrors(opName, 'Missing --function option. Please specify a FunctionName to attach the IDS/IPS feature.') })()
-    attachLayer(metaOutput.Output.LayerVersionArn, argv.functionName)
+    updateFunctionLayer(metaOutput.Output.LayerVersionArn, argv.functionName, true)
+} if (cmdOPS == 'DETACH') {
+    let metaOutput = getMetaOutputJSON(config)
+    argv.functionName || (() => { simplify.finishWithErrors(opName, 'Missing --function option. Please specify a FunctionName to attach the IDS/IPS feature.') })()
+    updateFunctionLayer(metaOutput.Output.LayerVersionArn, argv.functionName, false)
+} else {
 }
 
 function getMetaOutputJSON(config) {
@@ -71,7 +76,7 @@ function getMetaOutputJSON(config) {
     return fs.existsSync(metadataFilePath) ? JSON.parse(fs.readFileSync(metadataFilePath)) : { Output: {}, Configuration: { Environment: { Variables: {} } } }
 }
 
-function attachLayer(layerVersionArn, functionName) {
+function updateFunctionLayer(layerVersionArn, functionName, attachOrDetach) {
     provider.setConfig(config).then(function () {
         simplify.consoleWithMessage(`${opName}-getFunction`, `${functionName}:${'$LATEST'}`)
         provider.getFunction().getFunction({
@@ -90,8 +95,9 @@ function attachLayer(layerVersionArn, functionName) {
                     }
                     return layerArn
                 }).filter(x => x) || []
-
-                functionData.Configuration.Layers.push(layerVersionArn)
+                if (attachOrDetach /** TRUE to attach the IDS/IPS layer */) {
+                    functionData.Configuration.Layers.push(layerVersionArn)
+                }
                 const reflectionHandler = '/opt/nodejs/node_modules/simplify-intrusion/reflection.handler'
                 let params = {
                     FunctionName: functionName,
@@ -129,7 +135,7 @@ function attachLayer(layerVersionArn, functionName) {
     })
 }
 
-function pushLayer(layerName) {
+function createIDSLayer(layerName) {
     try {
         config.LayerConfig.LayerName = layerName
         provider.setConfig(config).then(function () {
