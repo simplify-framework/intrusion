@@ -1,4 +1,4 @@
-### SimplifyFramework - IDS/IPS (Network/Module) : SUPPORTED VERSION >= 10.x
+### SimplifyFramework - IDS/IPS (Network/Module) : NodeJS version >= 10.x
 
 ![NPM Downloads](https://img.shields.io/npm/dw/simplify-intrusion)
 ![Package Version](https://img.shields.io/github/package-json/v/simplify-framework/intrusion?color=green)
