@@ -13,21 +13,21 @@ const RESET = '\x1b[0m'
 const opName = `IDS/IPS`
 var argv = require('yargs')
     .usage('simplify-intrusion make|attach|detach [options]')
-    .string('input')
-    .alias('i', 'input')
-    .describe('input', 'Function Name as input')
     .string('profile')
     .describe('profile', 'AWS Profile configuration')
     .alias('p', 'profile')
     .default('profile', 'default')
     .string('region')
-    .describe('region', 'AWS Specific Region')
+    .describe('region', 'Specify your working AWS region')
     .alias('r', 'region')
     .string('bucket')
-    .describe('bucket', 'Specify a bucket to store the IDS/IPS archive code')
+    .alias('b', 'bucket')
+    .describe('bucket', 'S3 bucket to store the IDS/IPS archive code')
     .string('layer-name')
+    .alias('l', 'layer-name')
     .describe('layer-name', 'Select a name to deploy the IDS/IPS feature')
     .string('function-name')
+    .alias('f', 'function-name')
     .describe('function-name', 'Function name to attach the IDS/IPS feature')
     .demandOption([])
     .demandCommand(1)
@@ -66,6 +66,7 @@ if (cmdOPS == 'MAKE') {
     argv.functionName || (() => { simplify.finishWithErrors(opName, 'Missing --function option. Please specify a FunctionName to attach the IDS/IPS feature.') })()
     updateFunctionLayer(metaOutput.Output.LayerVersionArn, argv.functionName, false)
 } else {
+    simplify.finishWithMessage(opName, 'Command not found. Use one of the following: make | attach | detach')
 }
 
 function getMetaOutputJSON(config) {

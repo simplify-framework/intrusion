@@ -7,8 +7,8 @@
     "simplify-intrusion": "index.js"
   },
   "scripts": {
-    "test": "npm run test-commonjs",
-    "test-lambda": "node -e \"process.env.ORIGIN_LAMBDA_HANDLER=`${require('path').resolve(__dirname,'tests/lambda')}.handler`;console.log(process.env.ORIGIN_LAMBDA_HANDLER);require('./reflection').handler(null,null,function(err,data) {console.log(err?err:data)})\"",
+    "test": "npm run test-commonjs && npm run test-lambda",
+    "test-lambda": "node -e \"process.env.IDS_LAMBDA_HANDLER=`${require('path').resolve(__dirname,'tests/lambda')}.handler`;require('./reflection').handler(null,null,function(err,data) {console.log(err?err:data)})\"",
     "test-commonjs": "cd tests/commonjs/ && npm run test"
   },
   "repository": {
