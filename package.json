@@ -8,7 +8,7 @@
   },
   "scripts": {
     "test": "npm run test-commonjs && npm run test-lambda",
-    "test-lambda": "node -e \"process.env.IDS_LAMBDA_HANDLER=`${require('path').resolve(__dirname,'tests/lambda')}.handler`;require('./reflection').handler(null,null,function(err,data) {console.log(err?err:data)})\"",
+    "test-lambda": "bash ./lambda.sh",
     "test-commonjs": "cd tests/commonjs/ && npm run test"
   },
   "repository": {
