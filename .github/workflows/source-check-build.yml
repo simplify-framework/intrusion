@@ -17,6 +17,8 @@ jobs:
       - uses: actions/setup-node@v2
         with:
           node-version: 16
+      - run: mkdir -p ~/.aws/
+      - run: echo "[default]" > ~/.aws/config
       - run: npm ci
       - run: npm test
   check-v14:
@@ -26,6 +28,8 @@ jobs:
       - uses: actions/setup-node@v2
         with:
           node-version: 14
+      - run: mkdir -p ~/.aws/
+      - run: echo "[default]" > ~/.aws/config
       - run: npm ci
       - run: npm test
   check-v12:
@@ -35,5 +39,7 @@ jobs:
       - uses: actions/setup-node@v2
         with:
           node-version: 12
+      - run: mkdir -p ~/.aws/
+      - run: echo "[default]" > ~/.aws/config
       - run: npm ci
       - run: npm test
