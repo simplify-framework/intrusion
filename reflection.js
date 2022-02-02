@@ -14,15 +14,20 @@ var ids = new IDS({
 module.exports.handler = function (event, context, callback) {
     const lambdaHandler = process.env.IDS_LAMBDA_HANDLER
     if (typeof lambdaHandler === 'string' && lambdaHandler) {
+        const startedTimestamp = new Date().getTime()
         const handlerParts = lambdaHandler.split('.')
+        console.log('IDS/IPS', ` Execution started at ${new Date()} - Timestamp ${parseInt(startedTimestamp / 1000)}`)
         require(`${handlerParts[0].trim()}`)[`${handlerParts[1].trim()}`](event, {
             ...context, succeed: function (data) {
                 ids.detach(function () { context.succeed(data) })
+                console.log('IDS/IPS', ` Execution existed at ${new Date()} - Billed in ${new Date().getTime() - startedTimestamp} ms`)
             }, done: function (err, data) {
                 ids.detach(function () { context.done(err, data) })
+                console.log('IDS/IPS', ` Execution existed at ${new Date()} - Billed in ${new Date().getTime() - startedTimestamp} ms`)
             }
         }, function (err, data) {
             ids.detach(function () { callback && callback(err, data) })
+            console.log('IDS/IPS', ` Execution existed at ${new Date()} - Billed in ${new Date().getTime() - startedTimestamp} ms`)
         })
     } else {
         callback({ message: 'Missing "IDS_LAMBDA_HANDLER" environment variable.' })

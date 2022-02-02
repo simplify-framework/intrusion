@@ -94,7 +94,7 @@ function updateFunctionLayer(layerVersionArn, functionName, attachOrDetach) {
             } else {
                 let functionData = { ...data, LayerInfos: [] }
                 const layerArnWithoutVersion = layerVersionArn.split(':').slice(0, 7).join(':')
-                simplify.consoleWithMessage(`${opName}-AttachLayerARN`, layerVersionArn)
+                simplify.consoleWithMessage(`${opName}-${attachOrDetach ? 'Attach' : 'Detach'}LayerARN`, layerVersionArn)
                 functionData.Configuration.Layers = functionData.Configuration.Layers.map(layer => {
                     const layerArn = typeof layer === 'string' ? layer : layer.Arn
                     if (layerArn.startsWith(layerArnWithoutVersion)) {
@@ -102,9 +102,6 @@ function updateFunctionLayer(layerVersionArn, functionName, attachOrDetach) {
                     }
                     return layerArn
                 }).filter(x => x) || []
-                if (attachOrDetach /** TRUE to attach the IDS/IPS layer */) {
-                    functionData.Configuration.Layers.push(layerVersionArn)
-                }
                 const reflectionHandler = '/opt/nodejs/node_modules/simplify-intrusion/reflection.handler'
                 let params = {
                     FunctionName: functionName,
@@ -118,18 +115,31 @@ function updateFunctionLayer(layerVersionArn, functionName, attachOrDetach) {
                             IDS_ALLOWED_MODULES: "fs,zlib",
                             IDS_BLOCKED_MODULES: "fake-module:1.0,test",
                             IDS_ENABLE_METRIC_LOGGING: "true",
+                            IDS_ENABLE_MODULE_TRACKER: "false",
                             IDS_CLOUDWATCH_DOMAIN_NAME: `${functionName}/IDS`,
                             IDS_HONEYPOT_SERVER: '127.0.0.1',
+                            IDS_PRINT_OUTPUT_LOG: "false",
                             ...functionData.Configuration.Environment.Variables
                         }
                     }
                 }
-                if (functionData.Configuration.Handler != reflectionHandler) {
-                    params.Environment.Variables['IDS_LAMBDA_HANDLER'] = `/var/task/${functionData.Configuration.Handler}`
+                if (attachOrDetach /** TRUE to attach the IDS/IPS layer */) {
+                    if (functionData.Configuration.Handler != reflectionHandler) {
+                        params.Environment.Variables['IDS_LAMBDA_HANDLER'] = `/var/task/${functionData.Configuration.Handler}`
+                    } else {
+                        /** Keep the existing Environment Variables with no change */
+                        params.Environment.Variables = functionData.Configuration.Environment.Variables
+                    }
+                    functionData.Configuration.Layers.push(layerVersionArn)
                 } else {
-                    /** Keep the existing Environment Variables with no change */
-                    params.Environment.Variables = functionData.Configuration.Environment.Variables
+                    params.Handler = functionData.Configuration.Environment.Variables['IDS_LAMBDA_HANDLER'].replace('/var/task/','')
+                    Object.keys(params.Environment.Variables).map(val => {
+                        if (val.startsWith('IDS_')) {
+                            delete params.Environment.Variables[val]
+                        }
+                    })
                 }
+
                 provider.getFunction().updateFunctionConfiguration(params, function (err, _) {
                     if (err) {
                         simplify.consoleWithMessage(`${opName}-UpdateFunctionConfig`, `${functionName} ${RED}(ERROR)${RESET} ${err}`);
@@ -149,6 +159,9 @@ function createIDSLayer(layerName) {
             const LAYER_NAME = layerConfig.LayerName.split('-').join('_').toUpperCase()
             if (fs.existsSync(distZippedPath)) {
                 fs.rmSync(distZippedPath, { recursive: true })
+            }
+            if (fs.existsSync(path.resolve('tests', 'commonjs', 'node_modules'))) {
+                fs.rmSync(path.resolve('tests', 'commonjs', 'node_modules'), { recursive: true })
             }
             const metadataFilePath = path.join(__dirname, config.OutputFile)
             const metaOutput = getMetaOutputJSON(config)
