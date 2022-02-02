@@ -1,4 +1,7 @@
 
+process.env.IDS_ENABLE_MODULE_TRACKER = true
+process.env.IDS_PRINT_OUTPUT_LOG = true
+
 var LIST_OPTIONS = [
     {
         name: `Block some hosts: 'www.google.com', '8.8.4.4', '8.8.8.8', 'websocketstest.com', '88.198.55.153'`,

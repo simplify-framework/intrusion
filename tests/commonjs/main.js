@@ -25,7 +25,8 @@ module.exports = {
             describe(`# Module load from file with require('...')`, function () {
                 const moduleName = 'requests' /** fixed - donot change to another module */
                 const hasRuleAllowed = checkHasRuleAllowed(options.host.blockModuleOrSHA256OfCode, options.host.allowModuleOrSHA256OfCode, moduleName)
-                it(`should return ${hasRuleAllowed ? 'OK' : 'an error'} when ${hasRuleAllowed ? 'allowing' : 'blocking'} require('${moduleName}')`, function (done) {
+                const itFn = process.env.IDS_ENABLE_MODULE_TRACKER == "true" ? it : it.skip
+                itFn(`should return ${hasRuleAllowed ? 'OK' : 'an error'} when ${hasRuleAllowed ? 'allowing' : 'blocking'} require('${moduleName}')`, function (done) {
                     app.testModuleLoad().then(() => done(hasRuleAllowed ? null : 'Module is not allowed but has been loaded')).catch(err => {
                         done(hasRuleAllowed ? `${err} while this module is allowed.` : null)
                     })
