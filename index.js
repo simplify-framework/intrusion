@@ -122,7 +122,7 @@ class IDS {
         IDS.AWS_REGION = AWS.config.region
         IDS.NAME_SPACE = applicationNamespace
         IDS.HONEYPOT_ENDPOINT = honeypotReflectionHost
-        IDS.ENABLE_METRIC_PRINT_LOGGING = enableMetricsLogging
+        IDS.ENABLE_METRIC_PRINT_LOGGING = enableMetricsLogging || process.env.IDS_ENABLE_METRIC_LOGGING
         IDS.CW_METRIC_DATA = []
 
         class _Module extends Module {

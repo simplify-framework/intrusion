@@ -38,7 +38,7 @@ Policies:
 ```
 
 The metrics' namespace is set in the constructor at 2nd parameter: 
-- new IDS({}, '`TestApp/IDS`' /* Custom Namespace */)
+- new IDS({}, '`TestApp/IDS`' /* Custom Namespace */, '127.0.0.255'/* honeypot */, true /* enable metric logging */)
 
 
 ### AWS/Lambda - Make a build then attach to a Lambda function by using command line
