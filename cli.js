@@ -90,7 +90,7 @@ function updateFunctionLayer(layerVersionArn, functionName, attachOrDetach) {
             FunctionName: functionName /** Possible to modify a $LATEST function version only */
         }, function (err, data) {
             if (err) {
-                simplify.consoleWithMessage(`${opName}-GetFunction`, `${CERROR}(ERROR)${CRESET} ${err}`);
+                simplify.consoleWithMessage(`${opName}-GetFunction`, `${RED}(ERROR)${RESET} ${err}`);
             } else {
                 let functionData = { ...data, LayerInfos: [] }
                 const layerArnWithoutVersion = layerVersionArn.split(':').slice(0, 7).join(':')
@@ -109,30 +109,30 @@ function updateFunctionLayer(layerVersionArn, functionName, attachOrDetach) {
                     Handler: `${reflectionHandler}`,
                     Environment: {
                         Variables: {
-                            IDS_LAMBDA_HANDLER: `/var/task/${functionData.Configuration.Handler}`,
+                            IDS_LAMBDA_HANDLER: `${functionData.Configuration.Handler}`,
                             IDS_ALLOWED_HOSTS: "127.0.0.1,local",
                             IDS_BLOCKED_HOSTS: "127.0.0.2,malware.domain",
                             IDS_ALLOWED_MODULES: "fs,zlib",
                             IDS_BLOCKED_MODULES: "fake-module:1.0,test",
                             IDS_ENABLE_METRIC_LOGGING: "true",
-                            IDS_ENABLE_MODULE_TRACKER: "false",
+                            IDS_ENABLE_MODULE_TRACKER: "true",
                             IDS_CLOUDWATCH_DOMAIN_NAME: `${functionName}/IDS`,
                             IDS_HONEYPOT_SERVER: '127.0.0.1',
-                            IDS_PRINT_OUTPUT_LOG: "false",
+                            IDS_PRINT_OUTPUT_LOG: "true",
                             ...functionData.Configuration.Environment.Variables
                         }
                     }
                 }
                 if (attachOrDetach /** TRUE to attach the IDS/IPS layer */) {
                     if (functionData.Configuration.Handler != reflectionHandler) {
-                        params.Environment.Variables['IDS_LAMBDA_HANDLER'] = `/var/task/${functionData.Configuration.Handler}`
+                        params.Environment.Variables['IDS_LAMBDA_HANDLER'] = `${functionData.Configuration.Handler}`
                     } else {
                         /** Keep the existing Environment Variables with no change */
                         params.Environment.Variables = functionData.Configuration.Environment.Variables
                     }
                     functionData.Configuration.Layers.push(layerVersionArn)
                 } else {
-                    params.Handler = functionData.Configuration.Environment.Variables['IDS_LAMBDA_HANDLER'].replace('/var/task/','')
+                    params.Handler = functionData.Configuration.Environment.Variables['IDS_LAMBDA_HANDLER']
                     Object.keys(params.Environment.Variables).map(val => {
                         if (val.startsWith('IDS_')) {
                             delete params.Environment.Variables[val]
