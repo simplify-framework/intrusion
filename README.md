@@ -43,8 +43,8 @@ The metrics' namespace is set in the constructor at 2nd parameter:
 
 ### AWS/Lambda - Make a build then attach to a Lambda function by using command line
 
-- `simplify-intrusion --bucket YOUR_BUCKET_NAME --layer-name YOUR_IDS_LAYER_NAME make`
-- `simplify-intrusion --function-name YOUR_TARGET_FUNCTION attach`
+- `simplify-intrusion --bucket=YOUR_BUCKET_NAME --layer-name=YOUR_IDS_LAYER_NAME make`
+- `simplify-intrusion --function-name=YOUR_TARGET_FUNCTION [--layer-version-arn=YOUR_LAYER_ARN] attach`
 
 ### SDK/Library - Use the { IDS } module to detect the intrustion outbound network from your code:
 
