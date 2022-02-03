@@ -32,6 +32,6 @@
     "lodash": "^4.17.21"
   },
   "devDependencies": {
-    "simplify-sdk": ">=0.1.58"
+    "simplify-sdk": "^0.1.59"
   }
 }
