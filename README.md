@@ -21,11 +21,9 @@ WARNING: This library does not handle the require('net').Socket.connect() functi
 
 This library requires AWS IAM Role to allow publishing the CloudWatch Metrics to a custom namespace:
 
-**The process.env.`IDS_ENABLE_METRIC_LOGGING`=true|`false` will turn ON or OFF the AWS CloudWatch metric collector.**
-
-**The process.env.`IDS_ENABLE_MODULE_TRACKER`=true|`false` will turn ON or OFF the modules tracker (not listen for require(...)).**
-
-**The process.env.`IDS_PRINT_OUTPUT_LOG`=true|`false` will turn ON or OFF the console output logs (silent mode).**
+- The process.env.`IDS_ENABLE_METRIC_LOGGING`=true|`false` will turn ON or OFF the AWS CloudWatch metric collector.
+- The process.env.`IDS_ENABLE_MODULE_TRACKER`=true|`false` will turn ON or OFF the modules tracker (not listen for require(...)).
+- The process.env.`IDS_PRINT_OUTPUT_LOG`=true|`false` will turn ON or OFF the console output logs (silent mode).
 
 ```yaml
 Policies:
