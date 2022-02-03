@@ -46,7 +46,7 @@ var config = {
         Name: argv.bucket,
         Key: new Date().toISOString().replace(/-/g, '').slice(0, 8)
     },
-    OutputFile: '.simplify/meta.json'
+    OutputFile: `.simplify/${argv.profile}-${argv.region}.json`
 }
 const layerConfig = config.LayerConfig
 const bucketName = config.Bucket.Name
@@ -64,7 +64,7 @@ if (cmdOPS == 'MAKE') {
     let layerVersionArn = argv.layerVersionArn
     if (!layerVersionArn) {
         let metaOutput = getMetaOutputJSON(config)
-        layerVersionArn = metaOutput.Output.LayerVersionArn
+        layerVersionArn = metaOutput.LastBuild.LayerVersionArn
         if (!layerVersionArn) {
             argv.layerVersionArn = argv.layerVersionArn || (() => { simplify.finishWithErrors(opName, 'Missing --layer-version-arn option. Please specify a Layer ARN with version to deploy the IDS/IPS feature.') })()
         }
@@ -80,11 +80,16 @@ function getMetaOutputJSON(config) {
     if (!fs.existsSync(path.dirname(metadataFilePath))) {
         fs.mkdirSync(path.dirname(metadataFilePath))
     }
-    return fs.existsSync(metadataFilePath) ? JSON.parse(fs.readFileSync(metadataFilePath)) : { Output: {}, Configuration: { Environment: { Variables: {} } } }
+    let options = { LastBuild: {}, Configuration: { Layers: [] } }
+    if (fs.existsSync(metadataFilePath)) {
+        options = JSON.parse(fs.readFileSync(metadataFilePath))
+    }
+    options.Configuration.Region = config.Region
+    return options
 }
 
 function updateFunctionLayer(layerVersionArn, functionName, attachOrDetach) {
-    provider.setConfig(config).then(function () {
+    provider.setConfig(config).then(function (credentials) {
         simplify.consoleWithMessage(`${opName}-getFunction`, `${functionName}:${'$LATEST'}`)
         provider.getFunction().getFunction({
             FunctionName: functionName /** Possible to modify a $LATEST function version only */
@@ -92,10 +97,19 @@ function updateFunctionLayer(layerVersionArn, functionName, attachOrDetach) {
             if (err) {
                 simplify.consoleWithMessage(`${opName}-GetFunction`, `${RED}(ERROR)${RESET} ${err}`);
             } else {
+                const metadataFilePath = path.join(__dirname, config.OutputFile)
+                const metaOutput = getMetaOutputJSON(config)
+                metaOutput.Functions = metaOutput.Functions || []
                 let functionData = { ...data, LayerInfos: [] }
                 const layerArnWithoutVersion = layerVersionArn.split(':').slice(0, 7).join(':')
                 simplify.consoleWithMessage(`${opName}-${attachOrDetach ? 'Attach' : 'Detach'}LayerARN`, layerVersionArn)
-                functionData.Configuration.Layers = functionData.Configuration.Layers.map(layer => {
+                metaOutput.Functions = metaOutput.Functions.map(f => {
+                    if (f == functionData.Configuration.FunctionName) {
+                        return undefined
+                    }
+                    return f
+                }).filter(x => x)
+                functionData.Configuration.Layers = (functionData.Configuration.Layers || []).map(layer => {
                     const layerArn = typeof layer === 'string' ? layer : layer.Arn
                     if (layerArn.startsWith(layerArnWithoutVersion)) {
                         return undefined
@@ -130,6 +144,7 @@ function updateFunctionLayer(layerVersionArn, functionName, attachOrDetach) {
                         /** Keep the existing Environment Variables with no change */
                         params.Environment.Variables = functionData.Configuration.Environment.Variables
                     }
+                    metaOutput.Functions.push(functionName)
                     functionData.Configuration.Layers.push(layerVersionArn)
                 } else {
                     params.Handler = functionData.Configuration.Environment.Variables['IDS_LAMBDA_HANDLER']
@@ -139,6 +154,7 @@ function updateFunctionLayer(layerVersionArn, functionName, attachOrDetach) {
                         }
                     })
                 }
+                fs.writeFileSync(metadataFilePath, JSON.stringify(metaOutput, null, 4));
 
                 provider.getFunction().updateFunctionConfiguration(params, function (err, _) {
                     if (err) {
@@ -165,13 +181,13 @@ function createIDSLayer(layerName) {
             }
             const metadataFilePath = path.join(__dirname, config.OutputFile)
             const metaOutput = getMetaOutputJSON(config)
-            metaOutput.Output = {} /** RESET for every time to be consistent with the hash. */
+            metaOutput.LastBuild = {} /** RESET for every time to be consistent with the hash. */
             fs.writeFileSync(metadataFilePath, JSON.stringify(metaOutput, null, 4));
 
             simplify.uploadDirectoryAsZip({
                 adaptor: provider.getStorage(),
                 bucketName, bucketKey, inputDirectory, outputFilePath, fileName: 'layer', zippedDirectory: 'nodejs/node_modules/simplify-intrusion',
-                hashInfo: simplify.getFunctionSha256(metadataFilePath, `SHA256_LAYER_${LAYER_NAME}_HASH`)
+                hashInfo: metaOutput.LastBuild[`FileSha256`] || ""
             }).then(function (uploadInfor) {
                 if (uploadInfor.Key) {
                     var params = {
@@ -185,8 +201,10 @@ function createIDSLayer(layerName) {
                         if (err) {
                             simplify.consoleWithMessage(`${opName}-CreateLayerVersion`, `${RED}(ERROR)${RESET} ${err}`);
                         } else {
-                            metaOutput.Configuration.Environment.Variables[`SHA256_LAYER_${LAYER_NAME}_HASH`] = uploadInfor.FileSha256
-                            metaOutput.Output = { LayerVersionArn: data.LayerVersionArn }
+                            let layerObject = { Name: layerName, VersionArn: data.LayerVersionArn }
+                            metaOutput.Configuration.Layers = metaOutput.Configuration.Layers || []
+                            metaOutput.Configuration.Layers.push(layerObject)
+                            metaOutput.LastBuild = { LayerVersionArn: data.LayerVersionArn, FileSha256: uploadInfor.FileSha256 }
                             fs.writeFileSync(metadataFilePath, JSON.stringify(metaOutput, null, 4));
                             simplify.consoleWithMessage(`${opName}-CreateLayerVersion`, `${GREEN}(OK)${RESET} ${data.LayerVersionArn}`);
                         }

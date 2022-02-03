@@ -25,6 +25,10 @@ const PRINT_LOG = function (...args) {
     }
 }
 
+function getGenericSocketPath(socketPath) {
+    return socketPath.startsWith("/tmp/server-") && socketPath.endsWith(".sock") ? "/tmp/server-*.sock" : socketPath
+}
+
 if (require.main !== module) {
     GREEN = RED = YELLOW = VIOLET = RESET = ''
 }
@@ -44,8 +48,8 @@ Object.defineProperty(Array.prototype, 'chunk', {
     }
 })
 
-function resolveHostAddress(ipaddress) {
-    return (ipaddress)
+function resolveHostAddress(options) {
+    return (options)
 }
 
 // Returns an array [options, cb], where options is an object,
@@ -312,7 +316,7 @@ class IDS {
         const options = typeof args[0] === 'string' ? new URL(args[0]) : args[0]
         const protocol = `${options.protocol || (options.agent || {}).protocol || `${options.port === 80 ? 'http:' : options.socketPath ? 'file:' : 'https:'}`}`
         const moduleName = protocol.replace(':', '')
-        const resolvedHost = resolveHostAddress(options.host || options.socketPath)
+        const resolvedHost = resolveHostAddress(options.host || options.hostname || getGenericSocketPath(options.socketPath))
         const argURL = `${protocol}//${resolvedHost}${(options.search ? options.pathname + options.search : options.pathname) || options.path || ''}`
         if (IDS.verifyValueInCheckList(resolvedHost, IDS.ALLOWED_HOSTS)) {
             IDS.collectMetricForCWLogs("Allowed", "https.request()", resolvedHost)
@@ -334,7 +338,7 @@ class IDS {
         const options = typeof args[0] === 'string' ? new URL(args[0]) : typeof args[1] === 'function' ? {} : args[1]
         const protocol = `${options.protocol || (options.agent || {}).protocol || `${options.port === 80 ? 'http:' : options.socketPath ? 'file:' : 'https:'}`}`
         const moduleName = protocol.replace(':', '')
-        const resolvedHost = resolveHostAddress(options.host || options.socketPath)
+        const resolvedHost = resolveHostAddress(options.host || options.hostname || getGenericSocketPath(options.socketPath))
         const argURL = `${protocol}//${resolvedHost}${(options.search ? options.pathname + options.search : options.pathname) || options.path || ''}`
         if (IDS.verifyValueInCheckList(resolvedHost, IDS.ALLOWED_HOSTS)) {
             IDS.collectMetricForCWLogs("Allowed", "https.get()", resolvedHost)
@@ -417,7 +421,7 @@ class IDS {
             }
             return socket.connect(...normalized);
         }
-        const resolvedHost = resolveHostAddress(options.host)
+        const resolvedHost = resolveHostAddress(options.host || options.hostname)
         const argURL = `socket://${resolvedHost}:${options.port}`
         if (IDS.verifyValueInCheckList(resolvedHost, IDS.ALLOWED_HOSTS)) {
             IDS.collectMetricForCWLogs("Allowed", "net.connect()", resolvedHost)
