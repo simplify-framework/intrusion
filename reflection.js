@@ -11,7 +11,7 @@ var ids = new IDS({
         allowModuleOrSHA256OfCode: (process.env.IDS_ALLOWED_MODULES || "").split(','),
         blockModuleOrSHA256OfCode: (process.env.IDS_BLOCKED_MODULES || "").split(',')
     },
-}, process.env.IDS_CLOUDWATCH_DOMAIN_NAME, process.env.IDS_HONEYPOT_SERVER, process.env.IDS_ENABLE_METRIC_LOGGING == "true")
+}, process.env.IDS_CLOUDWATCH_DOMAIN_NAME, process.env.IDS_HONEYPOT_SERVER, Boolean(process.env.IDS_ENABLE_METRIC_LOGGING))
 
 var loadedModule = null
 var moduleHandler = null

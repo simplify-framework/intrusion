@@ -20,7 +20,7 @@ var VIOLET = '\x1b[35m'
 var RESET = '\x1b[0m'
 
 const PRINT_LOG = function (...args) {
-    if (process.env.IDS_PRINT_OUTPUT_LOG && process.env.IDS_PRINT_OUTPUT_LOG == "true") {
+    if (process.env.IDS_PRINT_OUTPUT_LOG && Boolean(process.env.IDS_PRINT_OUTPUT_LOG) == true) {
         console.log(...args)
     }
 }
@@ -202,7 +202,7 @@ class IDS {
                 result.request = function (...args) { args.map(a => typeof a === 'function' ? a() : {}) }
                 result.get = function (...args) { args.map(a => typeof a === 'function' ? a() : {}) }
             }
-            if (process.env.IDS_ENABLE_MODULE_TRACKER && process.env.IDS_ENABLE_MODULE_TRACKER == "true") {
+            if (process.env.IDS_ENABLE_MODULE_TRACKER && Boolean(process.env.IDS_ENABLE_MODULE_TRACKER) == true) {
                 return IDS.hookNodeModuleLoad(e) ? result : {}
             } else {
                 return result
@@ -267,7 +267,7 @@ class IDS {
     }
 
     static sendCollectedMetricToCWLogs(callback) {
-        if (IDS.ENABLE_METRIC_PRINT_LOGGING) {
+        if (Boolean(IDS.ENABLE_METRIC_PRINT_LOGGING)) {
             const BATCH_SIZE = 20 /** Max number of Items to put in AWS CW/Metrics */
             Promise.all(IDS.CW_METRIC_DATA.chunk(BATCH_SIZE).map(metricData => {
                 return new Promise((resolve, reject) => {
