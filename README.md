@@ -19,7 +19,7 @@ WARNING: This library does not handle the require('net').Socket.connect() functi
 ### Node Environment Variables Setup
 
 - Set process.env.`IDS_ENABLE_METRIC_LOGGING`=true|`false` turns ON/OFF the AWS CloudWatch metric collector.
-- Set process.env.`IDS_ENABLE_MODULE_TRACKER`=true|`false` turns ON/OFF the modules tracker (not listen on require(...)).
+- Set process.env.`IDS_ENABLE_MODULE_TRACKER`=true|`false` turns ON/OFF the Host Tracker (HIDS/HIPS).
 - Set process.env.`IDS_PRINT_OUTPUT_LOG`=true|`false` turns ON/OFF the console output logs (silent mode).
 
 ### Setup your AWS environment or IAM Role in your Lambdas with this permission:
