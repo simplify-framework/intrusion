@@ -246,7 +246,7 @@ class IDS {
     }
 
     static collectMetricForCWLogs(metricName, keyName, keyValue) {
-        if (IDS.ENABLE_METRIC_PRINT_LOGGING && `monitoring.${IDS.AWS_REGION || '(missing)'}.amazonaws.com` !== keyValue) {
+        if (keyValue && IDS.ENABLE_METRIC_PRINT_LOGGING && `monitoring.${IDS.AWS_REGION || '(missing)'}.amazonaws.com` !== keyValue) {
             let lastValidMetric = IDS.CW_METRIC_DATA.find(x => {
                 const matchedMetric = x.MetricName == metricName && x.Dimensions[0].Name == keyName && x.Dimensions[0].Value == keyValue
                 if ((new Date().getTime() - new Date(x.Timestamp).getTime()) / 1000 < 60 /** in within 60 seconds */) {
@@ -449,10 +449,11 @@ class IDS {
 
     static hookSocketConnect = function (...args) {
         const socketType = args.length > 0 ? args.shift() : null
-        const requestPort = args.length > 0 ? args[0] : null
-        const requestHost = args.length > 1 ? args[1] : 'localhost'
+        let callbackIndex = args.findIndex(a => typeof a === 'function')
+        callbackIndex = callbackIndex >= 2 ? callbackIndex : 2
+        const requestPort = args.length > 0 ? args[callbackIndex-2] : null
+        const requestHost = args.length > 1 ? args[callbackIndex-1] : 'localhost'
         const resolvedHost = resolveHostAddress(requestHost)
-
         if (IDS.verifyValueInCheckList(resolvedHost, IDS.ALLOWED_HOSTS)) {
             IDS.collectMetricForCWLogs("Allowed", "socket.connect()", resolvedHost)
             PRINT_LOG('  >>>>', `[${GREEN}Allowed${RESET}] (${socketType}:socket) OPEN - socket://${resolvedHost}:${requestPort}`)
@@ -470,8 +471,10 @@ class IDS {
     }
 
     static hookUDPSocketSend = function (...args) {
-        const requestPort = args.length > 1 ? args[1] : null
-        const requestHost = args.length > 2 ? args[2] : 'localhost'
+        let callbackIndex = args.findIndex(a => typeof a === 'function')
+        callbackIndex = callbackIndex >= 2 ? callbackIndex : 2
+        const requestPort = args.length > 1 ? args[callbackIndex-2] : null
+        const requestHost = args.length > 2 ? args[callbackIndex-1] : 'localhost'
         const resolvedHost = resolveHostAddress(requestHost)
         if (IDS.verifyValueInCheckList(resolvedHost, IDS.ALLOWED_HOSTS)) {
             IDS.collectMetricForCWLogs("Allowed", "socket.send()", resolvedHost)

@@ -43,11 +43,21 @@ module.exports = {
                 });
             });
 
-            describe(`# Network access using require('http')`, function () {
+            describe(`# Network access using require('http').get`, function () {
                 const target = 'google.com'
                 const hasRuleAllowed = checkHasRuleAllowed(options.network.blockDomainsOrHostIPs, options.network.allowDomainsOrHostIPs, target)
                 it(`should return ${hasRuleAllowed ? 'OK' : 'an error'} when ${hasRuleAllowed ? 'allowing' : 'blocking'} http.get('${target}')`, function (done) {
                     app.testHttpGet(`http://${target}`).then(() => done(hasRuleAllowed ? null : 'Host is not allowed but has been reachable.')).catch(err => {
+                        done(hasRuleAllowed ? `${err} while this host is allowed.` : null)
+                    })
+                });
+            });
+            
+            describe(`# Network access using require('http').request`, function () {
+                const target = '127.0.0.1:8124'
+                const hasRuleAllowed = checkHasRuleAllowed(options.network.blockDomainsOrHostIPs, options.network.allowDomainsOrHostIPs, target)
+                it(`should return ${hasRuleAllowed ? 'OK' : 'an error'} when ${hasRuleAllowed ? 'allowing' : 'blocking'} http.get('${target}')`, function (done) {
+                    app.testHttpRequest(`http://${target}`).then(() => done(hasRuleAllowed ? null : 'Host is not allowed but has been reachable.')).catch(err => {
                         done(hasRuleAllowed ? `${err} while this host is allowed.` : null)
                     })
                 });

@@ -75,6 +75,25 @@ function testHttpGet(...options) {
     })
 }
 
+function testHttpRequest(...options) {
+    return new Promise((resolve, reject) => {
+        var http = require('http')
+        const optHostName = getOptHostName(options)
+        console.log(optHostName, options)
+        var r = http.request(...options, (res) => {
+            res.on('data', (data) => {
+                const check = checkResult(res.socket._host, optHostName)
+                check ? resolve() : reject('Hostname has been redirected to ' + res.socket._host)
+            });
+        })
+        r && r.on('error', err => {
+            reject(err.message)
+        })
+        r && r.end()
+    })
+}
+
+
 function testHttpsRequest(...options) {
     return new Promise((resolve, reject) => {
         var https = require('https')
@@ -205,6 +224,7 @@ module.exports = {
     testModuleLoad,
     testHttpClient,
     testHttpGet,
+    testHttpRequest,
     testHttpsRequest,
     testNetSocketConnect,
     testNetCreateConnection,

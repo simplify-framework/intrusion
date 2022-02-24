@@ -38,7 +38,7 @@ module.exports.handler = function (event, context, callback) {
     const startedTimestamp = new Date().getTime()
     console.log('IDS/IPS', ` Execution STARTED - Timestamp ${parseInt(startedTimestamp / 1000)}`)
     if (loadedModule && moduleHandler) {
-        loadedModule[`${moduleHandler}`](event, {
+        return loadedModule[`${moduleHandler}`](event, {
             ...context, succeed: function (data) {
                 ids.detach(function () { context.succeed(data) })
                 console.log('IDS/IPS', ` Execution EXISTED - Elapsed in ${new Date().getTime() - startedTimestamp} ms`)
@@ -50,7 +50,6 @@ module.exports.handler = function (event, context, callback) {
             ids.detach(function () { callback && callback(err, data) })
             console.log('IDS/IPS', ` Execution EXISTED - Elapsed in ${new Date().getTime() - startedTimestamp} ms`)
         })
-
     } else {
         console.error({ message: 'Missing or incorrect "IDS_LAMBDA_HANDLER" environment variable.' })
     }

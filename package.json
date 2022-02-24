@@ -1,6 +1,6 @@
 {
   "name": "simplify-intrusion",
-  "version": "0.1.9",
+  "version": "0.1.10",
   "description": "Simplify Intrusion Detection/Prevention for NodeJS",
   "main": "index.js",
   "bin": {
@@ -32,6 +32,7 @@
     "lodash": "^4.17.21"
   },
   "devDependencies": {
-    "simplify-sdk": "^0.1.59"
+    "simplify-sdk": "^0.1.59",
+    "yargs": "^17.3.1"
   }
 }
