@@ -1,6 +1,7 @@
 var { IDS } = require('./index.js')
 var path = require('path')
 var fs = require('fs')
+const { result } = require('lodash')
 
 var ids = new IDS({
     network: {
@@ -38,7 +39,7 @@ module.exports.handler = function (event, context, callback) {
     const startedTimestamp = new Date().getTime()
     console.log('IDS/IPS', ` Execution STARTED - Timestamp ${parseInt(startedTimestamp / 1000)}`)
     if (loadedModule && moduleHandler) {
-        return loadedModule[`${moduleHandler}`](event, {
+        const promiseResult = loadedModule[`${moduleHandler}`](event, {
             ...context, succeed: function (data) {
                 ids.detach(function () { context.succeed(data) })
                 console.log('IDS/IPS', ` Execution EXISTED - Elapsed in ${new Date().getTime() - startedTimestamp} ms`)
@@ -50,6 +51,17 @@ module.exports.handler = function (event, context, callback) {
             ids.detach(function () { callback && callback(err, data) })
             console.log('IDS/IPS', ` Execution EXISTED - Elapsed in ${new Date().getTime() - startedTimestamp} ms`)
         })
+        if (promiseResult && typeof promiseResult.then === 'function') {
+            return new Promise((resolve, reject) => {
+                promiseResult.then(lambdaResult => {
+                    ids.detach(function () { resolve(lambdaResult) })
+                    console.log('IDS/IPS', ` Execution EXISTED - Elapsed in ${new Date().getTime() - startedTimestamp} ms`)
+                }).catch(lambdaErr => {
+                    ids.detach(function () { reject(lambdaErr) })
+                    console.log('IDS/IPS', ` Execution EXISTED - Elapsed in ${new Date().getTime() - startedTimestamp} ms`)
+                })
+            })
+        }
     } else {
         console.error({ message: 'Missing or incorrect "IDS_LAMBDA_HANDLER" environment variable.' })
     }
