@@ -99,7 +99,7 @@ function normalizeArgs(args) {
 
 const showBoxBanner = function () {
     console.log("╓───────────────────────────────────────────────────────────────╖")
-    console.log(`║          Simplify Framework - IDS/IPS Version ${require('./package.json').version}           ║`)
+    console.log(`║          Simplify Framework - IDS/IPS Version ${require('./package.json').version}          ║`)
     console.log("╙───────────────────────────────────────────────────────────────╜")
 }
 
