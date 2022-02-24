@@ -58,7 +58,7 @@ module.exports = {
                 const hasRuleAllowed = checkHasRuleAllowed(options.network.blockDomainsOrHostIPs, options.network.allowDomainsOrHostIPs, target)
                 it(`should return ${hasRuleAllowed ? 'OK' : 'an error'} when ${hasRuleAllowed ? 'allowing' : 'blocking'} http.get('${target}')`, function (done) {
                     app.testHttpRequest(`http://${target}`).then(() => done(hasRuleAllowed ? null : 'Host is not allowed but has been reachable.')).catch(err => {
-                        done(hasRuleAllowed ? `${err} while this host is allowed.` : null)
+                        done(hasRuleAllowed ? err.indexOf('connect ECONNREFUSED 127.0.0.1:8124') >=0 ? null: `${err} while this host is allowed.` : null)
                     })
                 });
             });
