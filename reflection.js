@@ -3,7 +3,7 @@ var path = require('path')
 var fs = require('fs')
 String.prototype.toBoolean = function () {
     try {
-        return JSON.parse(this.toLowerCase())
+        return this && JSON.parse(this.toLowerCase())
     } catch {
         return false
     }
@@ -18,7 +18,7 @@ var ids = new IDS({
         allowModuleOrSHA256OfCode: (process.env.IDS_ALLOWED_MODULES || "").split(','),
         blockModuleOrSHA256OfCode: (process.env.IDS_BLOCKED_MODULES || "").split(',')
     },
-}, process.env.IDS_CLOUDWATCH_DOMAIN_NAME, process.env.IDS_HONEYPOT_SERVER, process.env.IDS_ENABLE_METRIC_LOGGING.toBoolean())
+}, process.env.IDS_CLOUDWATCH_DOMAIN_NAME, process.env.IDS_HONEYPOT_SERVER, (process.env.IDS_ENABLE_METRIC_LOGGING || "false").toBoolean())
 
 var loadedModule = null
 var moduleHandler = null
