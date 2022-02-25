@@ -1,7 +1,13 @@
 var { IDS } = require('./index.js')
 var path = require('path')
 var fs = require('fs')
-const { result } = require('lodash')
+String.prototype.toBoolean = function () {
+    try {
+        return JSON.parse(this.toLowerCase())
+    } catch {
+        return false
+    }
+}
 
 var ids = new IDS({
     network: {
@@ -12,7 +18,7 @@ var ids = new IDS({
         allowModuleOrSHA256OfCode: (process.env.IDS_ALLOWED_MODULES || "").split(','),
         blockModuleOrSHA256OfCode: (process.env.IDS_BLOCKED_MODULES || "").split(',')
     },
-}, process.env.IDS_CLOUDWATCH_DOMAIN_NAME, process.env.IDS_HONEYPOT_SERVER, Boolean(process.env.IDS_ENABLE_METRIC_LOGGING))
+}, process.env.IDS_CLOUDWATCH_DOMAIN_NAME, process.env.IDS_HONEYPOT_SERVER, process.env.IDS_ENABLE_METRIC_LOGGING.toBoolean())
 
 var loadedModule = null
 var moduleHandler = null

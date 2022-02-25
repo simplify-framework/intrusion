@@ -129,7 +129,7 @@ function updateFunctionLayer(layerVersionArn, functionName, attachOrDetach) {
                             IDS_ALLOWED_MODULES: "fs,zlib",
                             IDS_BLOCKED_MODULES: "fake-module:1.0,test",
                             IDS_ENABLE_METRIC_LOGGING: "true",
-                            IDS_ENABLE_MODULE_TRACKER: "true",
+                            IDS_ENABLE_MODULE_TRACKER: "false",
                             IDS_CLOUDWATCH_DOMAIN_NAME: `${functionName}/IDS`,
                             IDS_HONEYPOT_SERVER: '127.0.0.1',
                             IDS_PRINT_OUTPUT_LOG: "true",
